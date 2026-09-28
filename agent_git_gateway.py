@@ -48,6 +48,17 @@ def configure_logging() -> logging.Logger:
     return logger
 
 
+def get_request_user(environment: dict[str, str] | None = None) -> str:
+    environment = environment or os.environ
+    return (
+        environment.get("SSH_GATEWAY_ORIGINAL_USER")
+        or environment.get("SUDO_USER")
+        or environment.get("LOGNAME")
+        or environment.get("USER")
+        or getpass.getuser()
+    )
+
+
 def normalize_repository(raw_repository: str) -> str:
     repository = raw_repository.strip()
     if not repository:
@@ -161,7 +172,7 @@ def run_gateway(
 ) -> int:
     logger = logger or configure_logging()
     environment = dict(environment or os.environ)
-    request_user = request_user or environment.get("LOGNAME") or environment.get("USER") or getpass.getuser()
+    request_user = request_user or get_request_user(environment)
     run_as_user = run_as_user or pwd.getpwuid(os.geteuid()).pw_name
 
     operation, repository = parse_original_command(original_command)
@@ -223,7 +234,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             logger=logger,
         )
     except GatewayError as error:
-        user = os.environ.get("LOGNAME") or os.environ.get("USER") or getpass.getuser()
+        user = get_request_user()
         logger.info(
             "DENY user=%s operation=%s repo=%s reason=%s message=%s",
             user,
@@ -235,7 +246,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         print(f"agent-git-gateway: {error.message}", file=sys.stderr)
         return error.exit_code
     except FileNotFoundError as error:
-        user = os.environ.get("LOGNAME") or os.environ.get("USER") or getpass.getuser()
+        user = get_request_user()
         logger.info("DENY user=%s reason=missing-file message=%s", user, error)
         print(f"agent-git-gateway: {error}", file=sys.stderr)
         return 127

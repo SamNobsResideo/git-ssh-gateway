@@ -268,6 +268,7 @@ The tests cover:
 - allowlist enforcement
 - rejection of push/arbitrary commands/extra arguments
 - `GIT_PROTOCOL` preservation for protocol v2
+- explicit `run_as_user` HOME selection for downstream SSH
 
 ## Manual security verification
 
