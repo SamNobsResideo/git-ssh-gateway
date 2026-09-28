@@ -30,7 +30,8 @@ The local SSH daemon terminates the agent connection on loopback, forces every s
 `agent_git_gateway.py`, and the gateway opens a separate downstream SSH connection to GitHub by
 using a dedicated SSH host alias such as `github.com-agent-gateway`. This avoids recursion and
 keeps the real GitHub key in `real-user`'s account. The forced command preserves
-`SSH_ORIGINAL_COMMAND` across `sudo` so the gateway can inspect the requested Git operation.
+`SSH_ORIGINAL_COMMAND` across `sudo` so the gateway can inspect the requested Git operation, and
+it also preserves `SSH_GATEWAY_ORIGINAL_USER` so audit logs can record the original caller.
 
 ## Threat model
 

@@ -115,7 +115,7 @@ trap 'rm -rf "$sudoers_tmp_dir"' EXIT
 cat >"$sudoers_tmp" <<EOF
 git ALL=($REAL_USER) NOPASSWD: $LIBEXEC_DIR/agent-git-gateway-force-command
 Defaults!$LIBEXEC_DIR/agent-git-gateway-force-command !requiretty
-Defaults!$LIBEXEC_DIR/agent-git-gateway-force-command env_keep += "SSH_ORIGINAL_COMMAND GIT_PROTOCOL"
+Defaults!$LIBEXEC_DIR/agent-git-gateway-force-command env_keep += "SSH_ORIGINAL_COMMAND GIT_PROTOCOL SSH_GATEWAY_ORIGINAL_USER"
 EOF
 chmod 0440 "$sudoers_tmp"
 visudo -cf "$sudoers_tmp"
