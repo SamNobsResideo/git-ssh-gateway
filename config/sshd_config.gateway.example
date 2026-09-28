@@ -21,4 +21,4 @@ PermitTTY no
 PermitListen none
 DisableForwarding yes
 AuthorizedKeysFile /etc/agent-git-gateway/authorized_keys
-ForceCommand /usr/bin/sudo -u real-user /usr/local/libexec/agent-git-gateway --allowlist /etc/agent-git-gateway/repos.conf --ssh-config /etc/agent-git-gateway/downstream_ssh_config --downstream-host github.com-agent-gateway
+ForceCommand /usr/bin/sudo -n -u real-user /usr/local/libexec/agent-git-gateway --allowlist /etc/agent-git-gateway/repos.conf --ssh-config /etc/agent-git-gateway/downstream_ssh_config --downstream-host github.com-agent-gateway

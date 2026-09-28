@@ -5,6 +5,12 @@ set -eu
 : "${DENIED_REPO:=company/not-allowed}"
 : "${REAL_USER_HOME:=/home/real-user}"
 : "${GITHUB_KEY_PATH:=/home/real-user/.ssh/id_ed25519_github}"
+: "${AGENT_USER:=agent-user}"
+
+if [ "$(id -un)" != "$AGENT_USER" ]; then
+    echo "manual-security-checks.sh must be run as $AGENT_USER" >&2
+    exit 1
+fi
 
 echo "== Allowed operations =="
 git ls-remote "git@github.com:${ALLOWED_REPO}.git"

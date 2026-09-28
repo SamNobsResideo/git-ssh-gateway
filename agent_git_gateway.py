@@ -172,6 +172,8 @@ def run_gateway(
         )
 
     downstream_environment = {"PATH": environment.get("PATH", "/usr/bin:/bin")}
+    if "HOME" in environment:
+        downstream_environment["HOME"] = environment["HOME"]
     if "GIT_PROTOCOL" in environment:
         downstream_environment["GIT_PROTOCOL"] = environment["GIT_PROTOCOL"]
 

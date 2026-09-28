@@ -17,6 +17,16 @@ REPO_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 INSTALL_DIR="/etc/agent-git-gateway"
 LIBEXEC_DIR="/usr/local/libexec"
 
+if ! printf '%s\n' "$REAL_USER" | grep -Eq '^[A-Za-z_][A-Za-z0-9_-]*$'; then
+    echo "REAL_USER must be a simple local account name" >&2
+    exit 1
+fi
+
+if ! id "$REAL_USER" >/dev/null 2>&1; then
+    echo "REAL_USER does not exist: $REAL_USER" >&2
+    exit 1
+fi
+
 install -d -m 0755 "$LIBEXEC_DIR"
 install -d -m 0750 "$INSTALL_DIR"
 install -m 0755 "$REPO_ROOT/agent_git_gateway.py" "$LIBEXEC_DIR/agent-git-gateway"

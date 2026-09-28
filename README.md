@@ -85,7 +85,7 @@ string to a shell.
 
 The example installation uses a locked local `git` account because standard GitHub SSH URLs
 already target `git@github.com`, and OpenSSH preserves that username from the client URL.
-The gateway command itself still runs as `real-user` via a tightly scoped `sudo` rule.
+The gateway command itself still runs as `real-user` via a tightly scoped `sudo -n` rule.
 
 1. Ensure permissions remain strict:
 
@@ -250,6 +250,10 @@ The tests cover:
 - `GIT_PROTOCOL` preservation for protocol v2
 
 ## Manual security verification
+
+Run `scripts/manual-security-checks.sh` as `agent-user`. The script exits immediately if it is
+started under another account, because the credential-isolation checks are only meaningful from
+the restricted account's point of view.
 
 Use `scripts/manual-security-checks.sh` as a checklist for:
 

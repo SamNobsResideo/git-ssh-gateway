@@ -71,7 +71,11 @@ class RunGatewayTests(unittest.TestCase):
             ssh_config=self.ssh_config,
             downstream_host="github.com-agent-gateway",
             ssh_binary="/usr/bin/ssh",
-            environment={"GIT_PROTOCOL": "version=2", "PATH": "/usr/bin:/bin"},
+            environment={
+                "GIT_PROTOCOL": "version=2",
+                "PATH": "/usr/bin:/bin",
+                "HOME": "/home/agent-user",
+            },
             user="agent-user",
             runner=fake_runner,
         )
@@ -80,6 +84,7 @@ class RunGatewayTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         command, env, check = calls[0]
         self.assertEqual(check, False)
+        self.assertEqual(env["HOME"], "/home/agent-user")
         self.assertEqual(env["GIT_PROTOCOL"], "version=2")
         self.assertIn("SendEnv=GIT_PROTOCOL", command)
         self.assertEqual(command[-1], "git-upload-pack company/allowed-repo.git")
