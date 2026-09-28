@@ -10,6 +10,7 @@ systemctl disable --now agent-git-gateway-sshd.service 2>/dev/null || true
 rm -f /etc/systemd/system/agent-git-gateway-sshd.service
 rm -f /etc/sudoers.d/agent-git-gateway
 rm -f /usr/local/libexec/agent-git-gateway
+rm -f /usr/local/libexec/agent-git-gateway-force-command
 rm -rf /etc/agent-git-gateway
 systemctl daemon-reload
 

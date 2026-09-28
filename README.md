@@ -62,6 +62,7 @@ REST, or GraphQL access.
 - `config/agent-git-gateway.nft.example` – nftables rule blocking direct SSH egress for `agent-user`
 - `systemd/agent-git-gateway-sshd.service` – dedicated systemd service for the gateway sshd
 - `scripts/install.sh` / `scripts/uninstall.sh` – installation helpers
+- `scripts/agent-git-gateway-force-command.sh.in` – forced-command wrapper template used by the installer
 - `scripts/manual-security-checks.sh` – manual verification checklist
 
 ## How the gateway works

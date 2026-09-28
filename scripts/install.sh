@@ -27,9 +27,29 @@ if ! id "$REAL_USER" >/dev/null 2>&1; then
     exit 1
 fi
 
+case "$GITHUB_KEY_PATH" in
+    "/home/$REAL_USER/.ssh/"*)
+        ;;
+    *)
+        echo "GITHUB_KEY_PATH must point inside /home/$REAL_USER/.ssh/" >&2
+        exit 1
+        ;;
+esac
+
+if [ ! -f "$GITHUB_KEY_PATH" ]; then
+    echo "GITHUB_KEY_PATH does not exist: $GITHUB_KEY_PATH" >&2
+    exit 1
+fi
+
+if [ "$(stat -c '%U' "$GITHUB_KEY_PATH")" != "$REAL_USER" ]; then
+    echo "GITHUB_KEY_PATH must be owned by $REAL_USER" >&2
+    exit 1
+fi
+
 install -d -m 0755 "$LIBEXEC_DIR"
 install -d -m 0750 -o root -g "$REAL_USER" "$INSTALL_DIR"
 install -m 0755 "$REPO_ROOT/agent_git_gateway.py" "$LIBEXEC_DIR/agent-git-gateway"
+install -m 0755 "$REPO_ROOT/scripts/agent-git-gateway-force-command.sh.in" "$LIBEXEC_DIR/agent-git-gateway-force-command"
 install -m 0640 "$REPO_ROOT/config/repos.conf.example" "$INSTALL_DIR/repos.conf"
 install -m 0600 "$REPO_ROOT/config/sshd_config.gateway.example" "$INSTALL_DIR/sshd_config"
 install -m 0640 "$REPO_ROOT/config/downstream_ssh_config.example" "$INSTALL_DIR/downstream_ssh_config"
@@ -51,14 +71,15 @@ if [ ! -f "$INSTALL_DIR/github_known_hosts" ]; then
     install -m 0640 /dev/null "$INSTALL_DIR/github_known_hosts"
 fi
 
-python3 - "$INSTALL_DIR/sshd_config" "$INSTALL_DIR/downstream_ssh_config" "$REAL_USER" "$GITHUB_KEY_PATH" <<'PY'
+python3 - "$INSTALL_DIR/sshd_config" "$INSTALL_DIR/downstream_ssh_config" "$LIBEXEC_DIR/agent-git-gateway-force-command" "$REAL_USER" "$GITHUB_KEY_PATH" <<'PY'
 from pathlib import Path
 import sys
 
 sshd_config = Path(sys.argv[1])
 downstream_config = Path(sys.argv[2])
-real_user = sys.argv[3]
-github_key_path = sys.argv[4]
+force_command = Path(sys.argv[3])
+real_user = sys.argv[4]
+github_key_path = sys.argv[5]
 
 sshd_config.write_text(
     sshd_config.read_text(encoding="utf-8").replace("real-user", real_user),
@@ -70,11 +91,16 @@ downstream_config.write_text(
     ),
     encoding="utf-8",
 )
+force_command.write_text(
+    force_command.read_text(encoding="utf-8").replace("@REAL_USER@", real_user),
+    encoding="utf-8",
+)
 PY
 
 chown root:root "$INSTALL_DIR/authorized_keys" "$INSTALL_DIR/sshd_config"
 chown root:"$REAL_USER" "$INSTALL_DIR/downstream_ssh_config" "$INSTALL_DIR/repos.conf" "$INSTALL_DIR/github_known_hosts"
 chown root:root "$INSTALL_DIR/ssh_host_ed25519_key" "$INSTALL_DIR/ssh_host_ed25519_key.pub"
+chown root:root "$LIBEXEC_DIR/agent-git-gateway-force-command"
 chmod 0600 "$INSTALL_DIR/ssh_host_ed25519_key"
 chmod 0644 "$INSTALL_DIR/ssh_host_ed25519_key.pub"
 

@@ -154,13 +154,13 @@ def run_gateway(
     downstream_host: str,
     ssh_binary: str = "/usr/bin/ssh",
     environment: dict[str, str] | None = None,
-    user: str | None = None,
+    request_user: str | None = None,
     runner=subprocess.run,
     logger: logging.Logger | None = None,
 ) -> int:
     logger = logger or configure_logging()
     environment = dict(environment or os.environ)
-    user = user or environment.get("LOGNAME") or environment.get("USER") or getpass.getuser()
+    request_user = request_user or environment.get("LOGNAME") or environment.get("USER") or getpass.getuser()
 
     operation, repository = parse_original_command(original_command)
     allowed_repositories = load_allowlist(allowlist_path)
@@ -182,7 +182,7 @@ def run_gateway(
     return_code = completed.returncode if hasattr(completed, "returncode") else int(completed)
     logger.info(
         "ALLOW user=%s operation=%s repo=%s downstream_exit=%s",
-        user,
+        request_user,
         operation,
         repository,
         return_code,

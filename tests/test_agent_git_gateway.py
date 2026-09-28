@@ -78,7 +78,7 @@ class RunGatewayTests(unittest.TestCase):
                 "PATH": "/usr/bin:/bin",
                 "HOME": "/home/agent-user",
             },
-            user="agent-user",
+            request_user="agent-user",
             runner=fake_runner,
         )
 
@@ -120,7 +120,7 @@ class RunGatewayTests(unittest.TestCase):
             ssh_config=self.ssh_config,
             downstream_host="github.com-agent-gateway",
             environment={"PATH": "/usr/bin:/bin", "HOME": "/home/agent-user"},
-            user="agent-user",
+            request_user="agent-user",
             runner=fake_runner,
         )
 
