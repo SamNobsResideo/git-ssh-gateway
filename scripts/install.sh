@@ -43,6 +43,10 @@ if [ ! -f "$INSTALL_DIR/authorized_keys" ]; then
     install -m 0600 /dev/null "$INSTALL_DIR/authorized_keys"
 fi
 
+if [ ! -f "$INSTALL_DIR/ssh_host_ed25519_key" ]; then
+    ssh-keygen -q -t ed25519 -N "" -f "$INSTALL_DIR/ssh_host_ed25519_key"
+fi
+
 python3 - "$INSTALL_DIR/sshd_config" "$INSTALL_DIR/downstream_ssh_config" "$REAL_USER" "$GITHUB_KEY_PATH" <<'PY'
 from pathlib import Path
 import sys
@@ -66,10 +70,14 @@ PY
 
 chown root:root "$INSTALL_DIR/authorized_keys" "$INSTALL_DIR/sshd_config"
 chown root:"$REAL_USER" "$INSTALL_DIR/downstream_ssh_config" "$INSTALL_DIR/repos.conf"
+chown root:root "$INSTALL_DIR/ssh_host_ed25519_key" "$INSTALL_DIR/ssh_host_ed25519_key.pub"
+chmod 0600 "$INSTALL_DIR/ssh_host_ed25519_key"
+chmod 0644 "$INSTALL_DIR/ssh_host_ed25519_key.pub"
 
 cat >/etc/sudoers.d/agent-git-gateway <<EOF
 git ALL=($REAL_USER) NOPASSWD: $LIBEXEC_DIR/agent-git-gateway --allowlist $INSTALL_DIR/repos.conf --ssh-config $INSTALL_DIR/downstream_ssh_config --downstream-host github.com-agent-gateway
 Defaults!$LIBEXEC_DIR/agent-git-gateway !requiretty
+Defaults!$LIBEXEC_DIR/agent-git-gateway env_keep += "SSH_ORIGINAL_COMMAND"
 EOF
 chmod 0440 /etc/sudoers.d/agent-git-gateway
 
@@ -80,5 +88,5 @@ echo "Installed agent-git-gateway."
 echo "Next steps:"
 echo "  1. Generate an agent gateway key pair for agent-user."
 echo "  2. Append the public key to $INSTALL_DIR/authorized_keys."
-echo "  3. Review $INSTALL_DIR/repos.conf and $INSTALL_DIR/downstream_ssh_config."
+echo "  3. Review $INSTALL_DIR/repos.conf, $INSTALL_DIR/downstream_ssh_config, and $INSTALL_DIR/ssh_host_ed25519_key.pub."
 echo "  4. Install the example nftables rule if you need direct SSH egress blocked for agent-user."

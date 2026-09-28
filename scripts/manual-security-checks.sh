@@ -66,7 +66,8 @@ if cat "$GITHUB_KEY_PATH"; then
     echo "unexpected success: private key readable" >&2
     exit 1
 fi
-if find "$REAL_USER_HOME/.ssh" -type f -readable -print | grep -q .; then
+readable_files="$(find "$REAL_USER_HOME/.ssh" -type f -readable -print 2>/dev/null || true)"
+if [ -n "$readable_files" ]; then
     echo "unexpected success: readable files in real-user .ssh" >&2
     exit 1
 fi

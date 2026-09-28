@@ -105,6 +105,26 @@ class RunGatewayTests(unittest.TestCase):
             agent_git_gateway.load_allowlist(self.allowlist)
         self.assertEqual(context.exception.reason, "invalid-allowlist")
 
+    def test_omits_git_protocol_when_not_requested(self) -> None:
+        calls = []
+
+        def fake_runner(command, env, check):
+            calls.append((command, env, check))
+            return SimpleNamespace(returncode=0)
+
+        return_code = agent_git_gateway.run_gateway(
+            original_command="git-upload-pack 'company/allowed-repo.git'",
+            allowlist_path=self.allowlist,
+            ssh_config=self.ssh_config,
+            downstream_host="github.com-agent-gateway",
+            environment={"PATH": "/usr/bin:/bin", "HOME": "/home/agent-user"},
+            user="agent-user",
+            runner=fake_runner,
+        )
+
+        self.assertEqual(return_code, 0)
+        self.assertNotIn("GIT_PROTOCOL", calls[0][1])
+
 
 if __name__ == "__main__":
     unittest.main()
