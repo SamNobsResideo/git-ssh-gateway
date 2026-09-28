@@ -30,6 +30,8 @@ if ! id "$REAL_USER" >/dev/null 2>&1; then
     exit 1
 fi
 
+GITHUB_KEY_PATH="$(readlink -f -- "$GITHUB_KEY_PATH")"
+
 case "$GITHUB_KEY_PATH" in
     "/home/$REAL_USER/.ssh/"*)
         ;;
@@ -53,10 +55,10 @@ install -d -m 0755 "$LIBEXEC_DIR"
 install -d -m 0750 -o root -g "$REAL_USER" "$INSTALL_DIR"
 install -d -m 0750 /etc/sudoers.d
 install -m 0755 "$REPO_ROOT/agent_git_gateway.py" "$LIBEXEC_DIR/agent-git-gateway"
-install -m 0755 "$REPO_ROOT/scripts/agent-git-gateway-force-command.sh.in" "$LIBEXEC_DIR/agent-git-gateway-force-command"
 install -m 0640 "$REPO_ROOT/config/repos.conf.example" "$INSTALL_DIR/repos.conf"
-install -m 0600 "$REPO_ROOT/config/sshd_config.gateway.example" "$INSTALL_DIR/sshd_config"
-install -m 0640 "$REPO_ROOT/config/downstream_ssh_config.example" "$INSTALL_DIR/downstream_ssh_config"
+install -m 0600 /dev/null "$INSTALL_DIR/sshd_config"
+install -m 0640 /dev/null "$INSTALL_DIR/downstream_ssh_config"
+install -m 0755 /dev/null "$LIBEXEC_DIR/agent-git-gateway-force-command"
 install -m 0644 "$REPO_ROOT/systemd/agent-git-gateway-sshd.service" /etc/systemd/system/agent-git-gateway-sshd.service
 
 if ! id git >/dev/null 2>&1; then
@@ -77,27 +79,38 @@ if [ ! -f "$INSTALL_DIR/github_known_hosts" ]; then
     install -m 0640 /dev/null "$INSTALL_DIR/github_known_hosts"
 fi
 
-python3 - "$INSTALL_DIR/sshd_config" "$INSTALL_DIR/downstream_ssh_config" "$LIBEXEC_DIR/agent-git-gateway-force-command" "$REAL_USER" "$GITHUB_KEY_PATH" <<'PY'
+python3 - \
+    "$REPO_ROOT/config/sshd_config.gateway.example" \
+    "$REPO_ROOT/config/downstream_ssh_config.example" \
+    "$REPO_ROOT/scripts/agent-git-gateway-force-command.sh.in" \
+    "$INSTALL_DIR/sshd_config" \
+    "$INSTALL_DIR/downstream_ssh_config" \
+    "$LIBEXEC_DIR/agent-git-gateway-force-command" \
+    "$REAL_USER" \
+    "$GITHUB_KEY_PATH" <<'PY'
 from pathlib import Path
 import sys
 
-sshd_config = Path(sys.argv[1])
-downstream_config = Path(sys.argv[2])
-force_command = Path(sys.argv[3])
-real_user = sys.argv[4]
-github_key_path = sys.argv[5]
+sshd_template = Path(sys.argv[1])
+downstream_template = Path(sys.argv[2])
+force_command_template = Path(sys.argv[3])
+sshd_config = Path(sys.argv[4])
+downstream_config = Path(sys.argv[5])
+force_command = Path(sys.argv[6])
+real_user = sys.argv[7]
+github_key_path = sys.argv[8]
 
 sshd_config.write_text(
-    sshd_config.read_text(encoding="utf-8").replace("@REAL_USER@", real_user),
+    sshd_template.read_text(encoding="utf-8").replace("@REAL_USER@", real_user),
     encoding="utf-8",
 )
 
 downstream_config.write_text(
-    downstream_config.read_text(encoding="utf-8").replace("@GITHUB_KEY_PATH@", github_key_path),
+    downstream_template.read_text(encoding="utf-8").replace("@GITHUB_KEY_PATH@", github_key_path),
     encoding="utf-8",
 )
 force_command.write_text(
-    force_command.read_text(encoding="utf-8").replace("@REAL_USER@", real_user),
+    force_command_template.read_text(encoding="utf-8").replace("@REAL_USER@", real_user),
     encoding="utf-8",
 )
 PY
