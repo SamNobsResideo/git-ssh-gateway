@@ -103,13 +103,19 @@ chown root:root "$LIBEXEC_DIR/agent-git-gateway-force-command"
 chmod 0600 "$INSTALL_DIR/ssh_host_ed25519_key"
 chmod 0644 "$INSTALL_DIR/ssh_host_ed25519_key.pub"
 
-cat >/etc/sudoers.d/agent-git-gateway <<EOF
+sudoers_tmp="$(mktemp)"
+trap 'rm -f "$sudoers_tmp"' EXIT
+
+cat >"$sudoers_tmp" <<EOF
 git ALL=($REAL_USER) NOPASSWD: $LIBEXEC_DIR/agent-git-gateway-force-command
 Defaults!$LIBEXEC_DIR/agent-git-gateway-force-command !requiretty
 Defaults!$LIBEXEC_DIR/agent-git-gateway-force-command env_keep += "SSH_ORIGINAL_COMMAND GIT_PROTOCOL"
 EOF
-chmod 0440 /etc/sudoers.d/agent-git-gateway
-visudo -cf /etc/sudoers.d/agent-git-gateway
+chmod 0440 "$sudoers_tmp"
+visudo -cf "$sudoers_tmp"
+install -m 0440 "$sudoers_tmp" /etc/sudoers.d/agent-git-gateway
+rm -f "$sudoers_tmp"
+trap - EXIT
 
 systemctl daemon-reload
 systemctl enable --now agent-git-gateway-sshd.service
