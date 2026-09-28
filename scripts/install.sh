@@ -107,9 +107,10 @@ chmod 0644 "$INSTALL_DIR/ssh_host_ed25519_key.pub"
 
 old_umask="$(umask)"
 umask 077
-sudoers_tmp="$(mktemp)"
+sudoers_tmp_dir="$(mktemp -d /run/agent-git-gateway.XXXXXX)"
+sudoers_tmp="$sudoers_tmp_dir/sudoers"
 umask "$old_umask"
-trap 'rm -f "$sudoers_tmp"' EXIT
+trap 'rm -rf "$sudoers_tmp_dir"' EXIT
 
 cat >"$sudoers_tmp" <<EOF
 git ALL=($REAL_USER) NOPASSWD: $LIBEXEC_DIR/agent-git-gateway-force-command
