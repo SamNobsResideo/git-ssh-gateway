@@ -18,6 +18,8 @@ GITHUB_KEY_PATH="$2"
 REPO_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 INSTALL_DIR="/etc/agent-git-gateway"
 LIBEXEC_DIR="/usr/local/libexec"
+STATE_DIR="/var/lib/agent-git-gateway"
+GIT_HOME_DIR="$STATE_DIR/git-home"
 DISABLED_PASSWORD_HASH='$6$agentgitgateway$w3nraMboJ6L5xlfGEQwMsu6z7uMdg9JvH1yy4D8sC4ShYplj5mV4T4slW8F4x8x6R/0wJXW8Yz5QWcxP8sJ3K0'
 
 if ! printf '%s\n' "$REAL_USER" | grep -Eq '^[A-Za-z_][A-Za-z0-9_]*$'; then
@@ -54,6 +56,7 @@ fi
 install -d -m 0755 "$LIBEXEC_DIR"
 install -d -m 0750 -o root -g "$REAL_USER" "$INSTALL_DIR"
 install -d -m 0750 /etc/sudoers.d
+install -d -m 0755 "$STATE_DIR"
 install -m 0755 "$REPO_ROOT/agent_git_gateway.py" "$LIBEXEC_DIR/agent-git-gateway"
 install -m 0640 "$REPO_ROOT/config/repos.conf.example" "$INSTALL_DIR/repos.conf"
 install -m 0600 /dev/null "$INSTALL_DIR/sshd_config"
@@ -62,10 +65,11 @@ install -m 0755 /dev/null "$LIBEXEC_DIR/agent-git-gateway-force-command"
 install -m 0644 "$REPO_ROOT/systemd/agent-git-gateway-sshd.service" /etc/systemd/system/agent-git-gateway-sshd.service
 
 if ! id git >/dev/null 2>&1; then
-    useradd --home-dir /nonexistent --shell /usr/sbin/nologin --password "$DISABLED_PASSWORD_HASH" --system git
+    useradd --home-dir "$GIT_HOME_DIR" --create-home --shell /usr/sbin/nologin --password "$DISABLED_PASSWORD_HASH" --system git
 else
-    usermod --home /nonexistent --shell /usr/sbin/nologin --password "$DISABLED_PASSWORD_HASH" git
+    usermod --home "$GIT_HOME_DIR" --shell /usr/sbin/nologin --password "$DISABLED_PASSWORD_HASH" git
 fi
+install -d -m 0700 -o git -g git "$GIT_HOME_DIR"
 
 if [ ! -f "$INSTALL_DIR/authorized_keys" ]; then
     install -m 0600 /dev/null "$INSTALL_DIR/authorized_keys"

@@ -90,6 +90,9 @@ The example installation uses a dedicated local `git` account because standard G
 already target `git@github.com`, and OpenSSH preserves that username from the client URL.
 That account should have a no-login shell and an unusable password hash, but it must not remain
 shadow-locked on Ubuntu because sshd rejects locked accounts before public-key authentication.
+The installer now gives that local account a dedicated home directory under
+`/var/lib/agent-git-gateway/git-home` so the loopback sshd does not depend on `/nonexistent`
+or other missing-home edge cases.
 The gateway command itself still runs as `real-user` via a tightly scoped `sudo -n` rule.
 The included installer targets Ubuntu/Linux with GNU userland tools, which matches the intended
 deployment environment for this project.
@@ -195,6 +198,10 @@ features:
 - no X11 forwarding
 - no environment injection
 - no SFTP
+
+It also disables PAM (`UsePAM no`) because this is a dedicated public-key-only loopback daemon
+and PAM account-state checks can reject the local service account before key authentication on
+Ubuntu.
 
 Use `config/sshd_config.gateway.example` as the baseline.
 
@@ -311,6 +318,10 @@ resolve to the same repository rule target; traversal and extra-argument variant
   `github.com-agent-gateway` and that only the `agent-user` config rewrites `github.com`.
 - If authentication fails, confirm the local gateway key is present in
   `/etc/agent-git-gateway/authorized_keys`.
+- If the loopback sshd still closes connections during preauth, inspect:
+  - `journalctl -u agent-git-gateway-sshd.service -n 100 --no-pager`
+  - `getent passwd git`
+  - `sudo -u agent-user ssh -vvv git@github.com`
 - If the gateway cannot read the downstream SSH config, verify file ownership and the `sudo`
   rule that runs the gateway as `real-user`.
 - If `agent-user` can still SSH directly to port 22, verify the nftables rule is loaded.

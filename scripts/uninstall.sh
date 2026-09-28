@@ -13,6 +13,7 @@ rm -f /etc/systemd/system/agent-git-gateway-sshd.service
 rm -f /usr/local/libexec/agent-git-gateway
 rm -f /usr/local/libexec/agent-git-gateway-force-command
 rm -rf /etc/agent-git-gateway
+rm -rf /var/lib/agent-git-gateway
 systemctl daemon-reload
 
 echo "Uninstalled agent-git-gateway."
