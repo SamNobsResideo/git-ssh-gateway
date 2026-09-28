@@ -161,8 +161,11 @@ def parse_rule_line(line: str) -> RepositoryRule:
     pattern_text = line
     if " " in line or "\t" in line:
         tokens = line.split(None, 1)
-        if len(tokens) == 2 and tokens[0] in {"allow", "deny"}:
-            action, pattern_text = tokens
+        if len(tokens) == 2:
+            if tokens[0] in {"allow", "deny"}:
+                action, pattern_text = tokens
+            else:
+                raise GatewayError("invalid-rule", f"unknown repository rule action {tokens[0]!r}")
     elif line in {"allow", "deny"}:
         raise GatewayError("invalid-rule", f"repository rule {line!r} is missing a pattern")
     return RepositoryRule(action=action, pattern=normalize_repository_pattern(pattern_text))
@@ -186,7 +189,7 @@ def load_repository_rules(path: str | os.PathLike[str]) -> list[RepositoryRule]:
 
 
 def pattern_matches_repository(pattern: str, repository: str) -> bool:
-    regex = "^" + re.escape(pattern).replace(r"\*", ".*") + "$"
+    regex = "^" + re.escape(pattern).replace(r"\*", "[^/]*") + "$"
     return re.fullmatch(regex, repository) is not None
 
 

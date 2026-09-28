@@ -215,6 +215,14 @@ class RepositoryRuleTests(unittest.TestCase):
         self.assertTrue(agent_git_gateway.repository_is_allowed("octocat/hello-world", parsed))
         self.assertFalse(agent_git_gateway.repository_is_allowed("company/blocked-repo", parsed))
 
+    def test_wildcard_does_not_cross_path_separator(self) -> None:
+        self.assertFalse(agent_git_gateway.pattern_matches_repository("company/*", "company/foo/bar"))
+
+    def test_unknown_rule_action_is_rejected(self) -> None:
+        with self.assertRaises(agent_git_gateway.GatewayError) as context:
+            agent_git_gateway.parse_rule_line("block company/repo")
+        self.assertEqual(context.exception.reason, "invalid-rule")
+
 
 if __name__ == "__main__":
     unittest.main()
