@@ -128,6 +128,28 @@ class RunGatewayTests(unittest.TestCase):
         self.assertNotIn("GIT_PROTOCOL", calls[0][1])
         self.assertEqual(calls[0][1]["HOME"], pwd.getpwuid(os.geteuid()).pw_dir)
 
+    def test_uses_explicit_run_as_user_for_home(self) -> None:
+        calls = []
+        run_as_user = pwd.getpwuid(os.geteuid()).pw_name
+
+        def fake_runner(command, env, check):
+            calls.append((command, env, check))
+            return SimpleNamespace(returncode=0)
+
+        return_code = agent_git_gateway.run_gateway(
+            original_command="git-upload-pack 'company/allowed-repo.git'",
+            allowlist_path=self.allowlist,
+            ssh_config=self.ssh_config,
+            downstream_host="github.com-agent-gateway",
+            environment={"PATH": "/usr/bin:/bin"},
+            request_user="agent-user",
+            run_as_user=run_as_user,
+            runner=fake_runner,
+        )
+
+        self.assertEqual(return_code, 0)
+        self.assertEqual(calls[0][1]["HOME"], pwd.getpwnam(run_as_user).pw_dir)
+
 
 if __name__ == "__main__":
     unittest.main()
