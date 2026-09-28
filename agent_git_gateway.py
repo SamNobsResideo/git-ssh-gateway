@@ -199,7 +199,6 @@ def build_argument_parser() -> argparse.ArgumentParser:
         default="github.com-agent-gateway",
         help="SSH host alias used for the downstream GitHub connection",
     )
-    parser.add_argument("--ssh-binary", default="/usr/bin/ssh", help="SSH client binary to execute")
     return parser
 
 
@@ -214,7 +213,6 @@ def main(argv: Iterable[str] | None = None) -> int:
             allowlist_path=args.allowlist,
             ssh_config=args.ssh_config,
             downstream_host=args.downstream_host,
-            ssh_binary=args.ssh_binary,
             logger=logger,
         )
     except GatewayError as error:

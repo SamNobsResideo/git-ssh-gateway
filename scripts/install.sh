@@ -71,24 +71,17 @@ if [ ! -f "$INSTALL_DIR/github_known_hosts" ]; then
     install -m 0640 /dev/null "$INSTALL_DIR/github_known_hosts"
 fi
 
-python3 - "$INSTALL_DIR/sshd_config" "$INSTALL_DIR/downstream_ssh_config" "$LIBEXEC_DIR/agent-git-gateway-force-command" "$REAL_USER" "$GITHUB_KEY_PATH" <<'PY'
+python3 - "$INSTALL_DIR/downstream_ssh_config" "$LIBEXEC_DIR/agent-git-gateway-force-command" "$REAL_USER" "$GITHUB_KEY_PATH" <<'PY'
 from pathlib import Path
 import sys
 
-sshd_config = Path(sys.argv[1])
-downstream_config = Path(sys.argv[2])
-force_command = Path(sys.argv[3])
-real_user = sys.argv[4]
-github_key_path = sys.argv[5]
+downstream_config = Path(sys.argv[1])
+force_command = Path(sys.argv[2])
+real_user = sys.argv[3]
+github_key_path = sys.argv[4]
 
-sshd_config.write_text(
-    sshd_config.read_text(encoding="utf-8").replace("real-user", real_user),
-    encoding="utf-8",
-)
 downstream_config.write_text(
-    downstream_config.read_text(encoding="utf-8").replace(
-        "/home/real-user/.ssh/id_ed25519_github", github_key_path
-    ),
+    downstream_config.read_text(encoding="utf-8").replace("@GITHUB_KEY_PATH@", github_key_path),
     encoding="utf-8",
 )
 force_command.write_text(

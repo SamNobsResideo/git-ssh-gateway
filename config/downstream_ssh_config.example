@@ -1,7 +1,7 @@
 Host github.com-agent-gateway
     HostName github.com
     User git
-    IdentityFile /home/real-user/.ssh/id_ed25519_github
+    IdentityFile @GITHUB_KEY_PATH@
     IdentitiesOnly yes
     StrictHostKeyChecking yes
     UserKnownHostsFile /etc/agent-git-gateway/github_known_hosts
