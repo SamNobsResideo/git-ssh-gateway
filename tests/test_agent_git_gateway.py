@@ -151,5 +151,19 @@ class RunGatewayTests(unittest.TestCase):
         self.assertEqual(calls[0][1]["HOME"], pwd.getpwnam(run_as_user).pw_dir)
 
 
+class RequestUserTests(unittest.TestCase):
+    def test_prefers_explicit_original_user_environment(self) -> None:
+        self.assertEqual(
+            agent_git_gateway.get_request_user(
+                {
+                    "SSH_GATEWAY_ORIGINAL_USER": "agent-user",
+                    "SUDO_USER": "git",
+                    "USER": "real-user",
+                }
+            ),
+            "agent-user",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
