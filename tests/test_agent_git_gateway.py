@@ -194,6 +194,11 @@ class RunGatewayTests(unittest.TestCase):
         rules = agent_git_gateway.load_repository_rules(self.allowlist)
         self.assertEqual(rules, [agent_git_gateway.RepositoryRule(action="allow", pattern="company/allowed-repo")])
 
+    def test_bare_rule_with_trailing_whitespace_and_comment_is_treated_as_allow(self) -> None:
+        self.allowlist.write_text("company/allowed-repo\t # comment\n", encoding="utf-8")
+        rules = agent_git_gateway.load_repository_rules(self.allowlist)
+        self.assertEqual(rules, [agent_git_gateway.RepositoryRule(action="allow", pattern="company/allowed-repo")])
+
 
 class RequestUserTests(unittest.TestCase):
     def test_prefers_explicit_original_user_environment(self) -> None:

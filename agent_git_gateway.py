@@ -169,8 +169,10 @@ def parse_rule_line(line: str) -> RepositoryRule:
             if len(tokens) != 2:
                 raise GatewayError("invalid-rule", f"repository rule {tokens[0]!r} must contain exactly one pattern")
             action, pattern_text = tokens
-        else:
+        elif len(tokens) > 1:
             raise GatewayError("invalid-rule", f"unknown repository rule action {tokens[0]!r}")
+        else:
+            pattern_text = tokens[0]
     elif line in {"allow", "deny"}:
         raise GatewayError("invalid-rule", f"repository rule {line!r} is missing a pattern")
     return RepositoryRule(action=action, pattern=normalize_repository_pattern(pattern_text))

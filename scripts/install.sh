@@ -50,6 +50,7 @@ fi
 
 install -d -m 0755 "$LIBEXEC_DIR"
 install -d -m 0750 -o root -g "$REAL_USER" "$INSTALL_DIR"
+install -d -m 0750 /etc/sudoers.d
 install -m 0755 "$REPO_ROOT/agent_git_gateway.py" "$LIBEXEC_DIR/agent-git-gateway"
 install -m 0755 "$REPO_ROOT/scripts/agent-git-gateway-force-command.sh.in" "$LIBEXEC_DIR/agent-git-gateway-force-command"
 install -m 0640 "$REPO_ROOT/config/repos.conf.example" "$INSTALL_DIR/repos.conf"
