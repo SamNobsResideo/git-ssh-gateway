@@ -119,7 +119,7 @@ Defaults!$LIBEXEC_DIR/agent-git-gateway-force-command env_keep += "SSH_ORIGINAL_
 EOF
 chmod 0440 "$sudoers_tmp"
 visudo -cf "$sudoers_tmp"
-sudoers_target_tmp="/etc/sudoers.d/agent-git-gateway.tmp"
+sudoers_target_tmp="$(mktemp /etc/sudoers.d/agent-git-gateway.XXXXXX)"
 install -m 0440 "$sudoers_tmp" "$sudoers_target_tmp"
 visudo -cf "$sudoers_target_tmp"
 mv "$sudoers_target_tmp" /etc/sudoers.d/agent-git-gateway
