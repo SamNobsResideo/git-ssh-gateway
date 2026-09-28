@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import getpass
 import logging
 import os
@@ -16,6 +17,7 @@ from typing import Iterable
 
 
 SAFE_SEGMENT_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+SAFE_PATTERN_SEGMENT_RE = re.compile(r"^[A-Za-z0-9._*-]+$")
 
 
 class GatewayError(Exception):
@@ -34,6 +36,12 @@ class GatewayError(Exception):
         self.exit_code = exit_code
         self.operation = operation
         self.repository = repository
+
+
+@dataclasses.dataclass(frozen=True)
+class RepositoryRule:
+    action: str
+    pattern: str
 
 
 def configure_logging() -> logging.Logger:
@@ -93,6 +101,40 @@ def normalize_repository(raw_repository: str) -> str:
     return f"{owner}/{repo}"
 
 
+def normalize_repository_pattern(raw_pattern: str) -> str:
+    pattern = raw_pattern.strip()
+    if not pattern:
+        raise GatewayError("missing-rule-pattern", "missing repository rule pattern")
+    if "\x00" in pattern:
+        raise GatewayError("invalid-rule-pattern", "NUL byte in repository rule pattern")
+    if any(character.isspace() for character in pattern):
+        raise GatewayError("invalid-rule-pattern", "whitespace not allowed in repository rule pattern")
+    if "\\" in pattern or ":" in pattern:
+        raise GatewayError("invalid-rule-pattern", "unsupported repository rule path separator")
+
+    segments = []
+    for segment in pattern.lstrip("/").split("/"):
+        if segment in ("", "."):
+            continue
+        if segment == "..":
+            raise GatewayError("invalid-rule-pattern", "parent directory traversal is not allowed")
+        if not SAFE_PATTERN_SEGMENT_RE.fullmatch(segment):
+            raise GatewayError("invalid-rule-pattern", "unsupported repository rule pattern characters")
+        segments.append(segment)
+
+    if len(segments) != 2:
+        raise GatewayError("invalid-rule-pattern", "repository rule pattern must be owner/repository")
+
+    owner, repo = segments
+    if repo.endswith(".git"):
+        repo = repo[:-4]
+    if not repo:
+        raise GatewayError("invalid-rule-pattern", "repository rule pattern is empty")
+    if not SAFE_PATTERN_SEGMENT_RE.fullmatch(repo):
+        raise GatewayError("invalid-rule-pattern", "unsupported repository rule pattern characters")
+    return f"{owner}/{repo}"
+
+
 def parse_original_command(original_command: str | None) -> tuple[str, str]:
     if not original_command:
         raise GatewayError("missing-command", "missing SSH_ORIGINAL_COMMAND")
@@ -114,21 +156,49 @@ def parse_original_command(original_command: str | None) -> tuple[str, str]:
     return operation, normalize_repository(repository)
 
 
-def load_allowlist(path: str | os.PathLike[str]) -> set[str]:
-    allowed_repositories: set[str] = set()
+def parse_rule_line(line: str) -> RepositoryRule:
+    action = "allow"
+    pattern_text = line
+    if " " in line or "\t" in line:
+        tokens = line.split(None, 1)
+        if len(tokens) == 2 and tokens[0] in {"allow", "deny"}:
+            action, pattern_text = tokens
+    elif line in {"allow", "deny"}:
+        raise GatewayError("invalid-rule", f"repository rule {line!r} is missing a pattern")
+    return RepositoryRule(action=action, pattern=normalize_repository_pattern(pattern_text))
+
+
+def load_repository_rules(path: str | os.PathLike[str]) -> list[RepositoryRule]:
+    rules: list[RepositoryRule] = []
     with open(path, "r", encoding="utf-8") as handle:
         for line_number, raw_line in enumerate(handle, start=1):
             line = raw_line.split("#", 1)[0].strip()
             if not line:
                 continue
             try:
-                allowed_repositories.add(normalize_repository(line))
+                rules.append(parse_rule_line(line))
             except GatewayError as error:
                 raise GatewayError(
-                    "invalid-allowlist",
-                    f"invalid allowlist entry on line {line_number}: {error.message}",
+                    "invalid-rules",
+                    f"invalid repository rule on line {line_number}: {error.message}",
                 ) from error
-    return allowed_repositories
+    return rules
+
+
+def pattern_matches_repository(pattern: str, repository: str) -> bool:
+    regex = "^" + re.escape(pattern).replace(r"\*", ".*") + "$"
+    return re.fullmatch(regex, repository) is not None
+
+
+def repository_is_allowed(repository: str, rules: list[RepositoryRule]) -> bool:
+    allow_matched = False
+    for rule in rules:
+        if not pattern_matches_repository(rule.pattern, repository):
+            continue
+        if rule.action == "deny":
+            return False
+        allow_matched = True
+    return allow_matched
 
 
 def build_remote_command(repository: str) -> str:
@@ -176,8 +246,8 @@ def run_gateway(
     run_as_user = run_as_user or pwd.getpwuid(os.geteuid()).pw_name
 
     operation, repository = parse_original_command(original_command)
-    allowed_repositories = load_allowlist(allowlist_path)
-    if repository not in allowed_repositories:
+    rules = load_repository_rules(allowlist_path)
+    if not repository_is_allowed(repository, rules):
         raise GatewayError(
             "repository-not-allowed",
             f"repository {repository!r} is not allowed",

@@ -2,7 +2,7 @@
 set -eu
 
 : "${ALLOWED_REPO:=company/allowed-repo}"
-: "${DENIED_REPO:=company/not-allowed}"
+: "${DENIED_REPO:=company/private-repo}"
 : "${REAL_USER_HOME:=/home/real-user}"
 : "${GITHUB_KEY_PATH:=/home/real-user/.ssh/id_ed25519_github}"
 : "${AGENT_USER:=agent-user}"
@@ -34,7 +34,7 @@ if ssh git@github.com "uname -a"; then
     exit 1
 fi
 if git ls-remote "git@github.com:${DENIED_REPO}.git"; then
-    echo "unexpected success: non-allowlisted repository" >&2
+    echo "unexpected success: deny-listed repository" >&2
     exit 1
 fi
 

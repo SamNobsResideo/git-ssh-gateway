@@ -27,6 +27,18 @@ class NormalizeRepositoryTests(unittest.TestCase):
                     agent_git_gateway.normalize_repository(repository)
 
 
+class NormalizeRepositoryPatternTests(unittest.TestCase):
+    def test_normalizes_wildcard_pattern(self) -> None:
+        self.assertEqual(
+            agent_git_gateway.normalize_repository_pattern("/./company//*-repo.git"),
+            "company/*-repo",
+        )
+
+    def test_rejects_invalid_pattern_characters(self) -> None:
+        with self.assertRaises(agent_git_gateway.GatewayError):
+            agent_git_gateway.normalize_repository_pattern("company/repo[12]")
+
+
 class ParseOriginalCommandTests(unittest.TestCase):
     def test_accepts_upload_pack(self) -> None:
         operation, repository = agent_git_gateway.parse_original_command(
@@ -56,7 +68,7 @@ class RunGatewayTests(unittest.TestCase):
         self.addCleanup(self.tempdir.cleanup)
         self.root = Path(self.tempdir.name)
         self.allowlist = self.root / "repos.conf"
-        self.allowlist.write_text("company/allowed-repo\n", encoding="utf-8")
+        self.allowlist.write_text("allow company/allowed-repo\n", encoding="utf-8")
         self.ssh_config = self.root / "downstream_ssh_config"
         self.ssh_config.write_text("Host github.com-agent-gateway\n", encoding="utf-8")
 
@@ -104,8 +116,8 @@ class RunGatewayTests(unittest.TestCase):
     def test_rejects_invalid_allowlist_entry(self) -> None:
         self.allowlist.write_text("company/repo extra\n", encoding="utf-8")
         with self.assertRaises(agent_git_gateway.GatewayError) as context:
-            agent_git_gateway.load_allowlist(self.allowlist)
-        self.assertEqual(context.exception.reason, "invalid-allowlist")
+            agent_git_gateway.load_repository_rules(self.allowlist)
+        self.assertEqual(context.exception.reason, "invalid-rules")
 
     def test_omits_git_protocol_when_not_requested(self) -> None:
         calls = []
@@ -150,6 +162,35 @@ class RunGatewayTests(unittest.TestCase):
         self.assertEqual(return_code, 0)
         self.assertEqual(calls[0][1]["HOME"], pwd.getpwnam(run_as_user).pw_dir)
 
+    def test_wildcard_allow_rule_matches(self) -> None:
+        self.allowlist.write_text("allow company/*\n", encoding="utf-8")
+
+        return_code = agent_git_gateway.run_gateway(
+            original_command="git-upload-pack 'company/public-repo.git'",
+            allowlist_path=self.allowlist,
+            ssh_config=self.ssh_config,
+            downstream_host="github.com-agent-gateway",
+            runner=lambda *args, **kwargs: SimpleNamespace(returncode=0),
+        )
+
+        self.assertEqual(return_code, 0)
+
+    def test_deny_rule_overrides_allow_rule(self) -> None:
+        self.allowlist.write_text("allow */*\ndeny company/private-*\n", encoding="utf-8")
+
+        with self.assertRaises(agent_git_gateway.GatewayError) as context:
+            agent_git_gateway.run_gateway(
+                original_command="git-upload-pack 'company/private-repo.git'",
+                allowlist_path=self.allowlist,
+                ssh_config=self.ssh_config,
+                downstream_host="github.com-agent-gateway",
+            )
+        self.assertEqual(context.exception.reason, "repository-not-allowed")
+
+    def test_bare_rule_is_treated_as_allow(self) -> None:
+        rules = agent_git_gateway.load_repository_rules(self.allowlist)
+        self.assertEqual(rules, [agent_git_gateway.RepositoryRule(action="allow", pattern="company/allowed-repo")])
+
 
 class RequestUserTests(unittest.TestCase):
     def test_prefers_explicit_original_user_environment(self) -> None:
@@ -163,6 +204,16 @@ class RequestUserTests(unittest.TestCase):
             ),
             "agent-user",
         )
+
+
+class RepositoryRuleTests(unittest.TestCase):
+    def test_allow_star_star_can_match_public_repo(self) -> None:
+        parsed = [
+            agent_git_gateway.RepositoryRule(action="allow", pattern="*/*"),
+            agent_git_gateway.RepositoryRule(action="deny", pattern="company/blocked-*"),
+        ]
+        self.assertTrue(agent_git_gateway.repository_is_allowed("octocat/hello-world", parsed))
+        self.assertFalse(agent_git_gateway.repository_is_allowed("company/blocked-repo", parsed))
 
 
 if __name__ == "__main__":

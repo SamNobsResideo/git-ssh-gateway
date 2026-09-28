@@ -1,4 +1,13 @@
-# owner/repository
-company/truman
-company/oclea
-company/another-private-repository
+# Bare entries are treated as allow rules for backward compatibility.
+# Use `allow` and `deny` for explicit rules. `*` is supported in both owner and repository names.
+#
+# Allow any repository through the gateway, including public repositories:
+allow */*
+#
+# Narrow examples:
+allow company/truman
+allow company/oclea
+allow company/another-private-repository
+#
+# Deny rules override allow rules:
+deny company/private-*

@@ -3,7 +3,7 @@
 Read-only GitHub SSH gateway for an isolated agent.
 
 This repository provides a small, auditable SSH gateway that lets a restricted `agent-user`
-fetch allowlisted private GitHub repositories by reusing a `real-user` account's existing
+fetch policy-allowed GitHub repositories by reusing a `real-user` account's existing
 GitHub SSH identity without exposing the GitHub private key to the agent.
 
 ## Architecture
@@ -40,14 +40,14 @@ The design assumes:
 - `agent-user` may run arbitrary programs, including `/usr/bin/ssh`, `/usr/bin/git`, Python, or C.
 - Existing Git/Yocto SSH URLs such as `git@github.com:company/repository.git` must continue to work.
 - The GitHub private key remains readable only by `real-user`.
-- The agent must not be able to push, run arbitrary commands, or fetch non-allowlisted repositories.
+- The agent must not be able to push, run arbitrary commands, or fetch repositories blocked by policy.
 
 Security comes from four layers:
 
 1. credential isolation (`real-user` owns the GitHub SSH key)
 2. network isolation (firewall blocks direct outbound TCP/22 for `agent-user`)
 3. gateway-side command validation (`ForceCommand` + `SSH_ORIGINAL_COMMAND`)
-4. exact repository allowlisting
+4. repository policy enforcement
 
 This gateway covers only Git-over-SSH. It does **not** provide GitHub API, `gh`, HTTPS Git,
 REST, or GraphQL access.
@@ -56,7 +56,7 @@ REST, or GraphQL access.
 
 - `agent_git_gateway.py` – stdlib-only gateway implementation
 - `tests/test_agent_git_gateway.py` – automated unit tests
-- `config/repos.conf.example` – allowlist example
+- `config/repos.conf.example` – allow/deny rule example
 - `config/downstream_ssh_config.example` – SSH alias for the downstream GitHub connection
 - `config/sshd_config.gateway.example` – dedicated loopback sshd instance
 - `config/agent-user-ssh_config.example` – `agent-user` client config that preserves normal Git URLs
@@ -75,7 +75,7 @@ REST, or GraphQL access.
 3. parses the command with `shlex.split()` instead of a shell
 4. permits only the exact operation `git-upload-pack`
 5. canonicalizes the repository path to `owner/repository`
-6. checks the repository against the allowlist
+6. checks the repository against the configured allow/deny rules
 7. opens a second SSH session to GitHub using the downstream alias
 8. preserves `GIT_PROTOCOL` so Git protocol v2 works over SSH
 9. inherits stdin/stdout/stderr for the Git data stream
@@ -131,19 +131,26 @@ deployment environment for this project.
 
 ## Configuration
 
-### Allowlist
+### Repository rules
 
-Allow only exact `owner/repository` entries in `/etc/agent-git-gateway/repos.conf`:
+`/etc/agent-git-gateway/repos.conf` supports `allow` and `deny` rules. Bare entries remain valid
+and are treated as `allow` rules for backward compatibility. `deny` overrides `allow`, and `*`
+wildcards are supported in both the owner and repository portions.
+
+Example:
 
 ```text
-company/truman
-company/oclea
-company/another-private-repository
+allow */*
+allow company/truman
+allow company/oclea
+deny company/private-*
 ```
 
 Blank lines and `#` comments are ignored. The gateway normalizes inputs such as leading `/`,
 `./`, duplicate slashes, and a trailing `.git`, and rejects traversal, extra arguments,
-whitespace tricks, shell metacharacters, and non-`owner/repository` layouts.
+whitespace tricks, shell metacharacters, and non-`owner/repository` layouts. A broad rule such as
+`allow */*` lets public repositories continue to work through the gateway, while deny rules can
+still block specific repositories or groups of repositories.
 
 ### Downstream SSH configuration
 
@@ -266,7 +273,7 @@ The tests cover:
 
 - safe `SSH_ORIGINAL_COMMAND` parsing
 - repository normalization
-- allowlist enforcement
+- allow/deny rule enforcement
 - rejection of push/arbitrary commands/extra arguments
 - `GIT_PROTOCOL` preservation for protocol v2
 - explicit `run_as_user` HOME selection for downstream SSH
@@ -284,7 +291,7 @@ Use `scripts/manual-security-checks.sh` as a checklist for:
 - denied `ssh git@github.com`
 - denied `git-upload-archive`
 - denied arbitrary commands such as `uname -a`
-- allowlist enforcement
+- allow/deny rule enforcement
 - parser bypass probes (`../`, `./`, leading `/`, extra args, metacharacters, whitespace)
 - credential isolation checks
 - direct network bypass checks
@@ -292,7 +299,7 @@ Use `scripts/manual-security-checks.sh` as a checklist for:
 Because this repository is being developed in a sandbox rather than on a real workstation, the
 manual checks are documented but not executed against a live GitHub organization here. Equivalent
 normalized paths such as `./owner/repo.git`, `/owner/repo.git`, and duplicate slashes should
-resolve to the same allowlisted repository; traversal and extra-argument variants should fail.
+resolve to the same repository rule target; traversal and extra-argument variants should fail.
 
 ## Troubleshooting
 
