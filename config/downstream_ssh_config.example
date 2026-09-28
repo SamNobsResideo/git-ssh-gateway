@@ -3,6 +3,8 @@ Host github.com-agent-gateway
     User git
     IdentityFile /home/real-user/.ssh/id_ed25519_github
     IdentitiesOnly yes
+    StrictHostKeyChecking yes
+    UserKnownHostsFile /etc/agent-git-gateway/github_known_hosts
     BatchMode yes
     PubkeyAuthentication yes
     PasswordAuthentication no

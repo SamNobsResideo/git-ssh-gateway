@@ -154,7 +154,18 @@ Host github.com-agent-gateway
 ```
 
 This file should remain unreadable to `agent-user`; the example installer sets it to `0640`
-and groups it to `real-user`.
+and groups it to `real-user`. The example also pins host-key verification:
+
+```sshconfig
+    StrictHostKeyChecking yes
+    UserKnownHostsFile /etc/agent-git-gateway/github_known_hosts
+```
+
+Populate that known-hosts file explicitly, for example:
+
+```bash
+sudo ssh-keyscan github.com >> /etc/agent-git-gateway/github_known_hosts
+```
 
 ### Local sshd configuration
 

@@ -6,6 +6,7 @@ import argparse
 import getpass
 import logging
 import os
+import pwd
 import re
 import shlex
 import subprocess
@@ -172,8 +173,7 @@ def run_gateway(
         )
 
     downstream_environment = {"PATH": environment.get("PATH", "/usr/bin:/bin")}
-    if "HOME" in environment:
-        downstream_environment["HOME"] = environment["HOME"]
+    downstream_environment["HOME"] = pwd.getpwuid(os.getuid()).pw_dir
     if "GIT_PROTOCOL" in environment:
         downstream_environment["GIT_PROTOCOL"] = environment["GIT_PROTOCOL"]
 

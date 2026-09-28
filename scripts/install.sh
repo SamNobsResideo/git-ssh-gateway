@@ -17,8 +17,8 @@ REPO_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 INSTALL_DIR="/etc/agent-git-gateway"
 LIBEXEC_DIR="/usr/local/libexec"
 
-if ! printf '%s\n' "$REAL_USER" | grep -Eq '^[A-Za-z_][A-Za-z0-9_-]*$'; then
-    echo "REAL_USER must be a simple local account name" >&2
+if ! printf '%s\n' "$REAL_USER" | grep -Eq '^[A-Za-z_][A-Za-z0-9_]*$'; then
+    echo "REAL_USER must be a simple local account name using only letters, digits, and underscores" >&2
     exit 1
 fi
 
@@ -47,6 +47,10 @@ if [ ! -f "$INSTALL_DIR/ssh_host_ed25519_key" ]; then
     ssh-keygen -q -t ed25519 -N "" -f "$INSTALL_DIR/ssh_host_ed25519_key"
 fi
 
+if [ ! -f "$INSTALL_DIR/github_known_hosts" ]; then
+    install -m 0640 /dev/null "$INSTALL_DIR/github_known_hosts"
+fi
+
 python3 - "$INSTALL_DIR/sshd_config" "$INSTALL_DIR/downstream_ssh_config" "$REAL_USER" "$GITHUB_KEY_PATH" <<'PY'
 from pathlib import Path
 import sys
@@ -69,7 +73,7 @@ downstream_config.write_text(
 PY
 
 chown root:root "$INSTALL_DIR/authorized_keys" "$INSTALL_DIR/sshd_config"
-chown root:"$REAL_USER" "$INSTALL_DIR/downstream_ssh_config" "$INSTALL_DIR/repos.conf"
+chown root:"$REAL_USER" "$INSTALL_DIR/downstream_ssh_config" "$INSTALL_DIR/repos.conf" "$INSTALL_DIR/github_known_hosts"
 chown root:root "$INSTALL_DIR/ssh_host_ed25519_key" "$INSTALL_DIR/ssh_host_ed25519_key.pub"
 chmod 0600 "$INSTALL_DIR/ssh_host_ed25519_key"
 chmod 0644 "$INSTALL_DIR/ssh_host_ed25519_key.pub"
@@ -88,5 +92,6 @@ echo "Installed agent-git-gateway."
 echo "Next steps:"
 echo "  1. Generate an agent gateway key pair for agent-user."
 echo "  2. Append the public key to $INSTALL_DIR/authorized_keys."
-echo "  3. Review $INSTALL_DIR/repos.conf, $INSTALL_DIR/downstream_ssh_config, and $INSTALL_DIR/ssh_host_ed25519_key.pub."
-echo "  4. Install the example nftables rule if you need direct SSH egress blocked for agent-user."
+echo "  3. Populate $INSTALL_DIR/github_known_hosts (for example with: ssh-keyscan github.com >> $INSTALL_DIR/github_known_hosts)."
+echo "  4. Review $INSTALL_DIR/repos.conf, $INSTALL_DIR/downstream_ssh_config, and $INSTALL_DIR/ssh_host_ed25519_key.pub."
+echo "  5. Install the example nftables rule if you need direct SSH egress blocked for agent-user."
