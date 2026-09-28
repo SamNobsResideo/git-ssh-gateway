@@ -1,0 +1,13 @@
+[Unit]
+Description=Loopback-only SSH gateway for read-only GitHub Git access
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/sshd -D -f /etc/agent-git-gateway/sshd_config
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

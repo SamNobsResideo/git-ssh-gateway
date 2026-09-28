@@ -1,0 +1,24 @@
+Port 2222
+ListenAddress 127.0.0.1
+AddressFamily inet
+Protocol 2
+HostKey /etc/agent-git-gateway/ssh_host_ed25519_key
+PidFile /run/agent-git-gateway-sshd.pid
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+PubkeyAuthentication yes
+PermitRootLogin no
+AllowUsers git
+PermitEmptyPasswords no
+PermitUserEnvironment no
+AllowAgentForwarding no
+AllowTcpForwarding no
+GatewayPorts no
+X11Forwarding no
+PermitTunnel no
+PermitTTY no
+PermitListen none
+DisableForwarding yes
+AuthorizedKeysFile /etc/agent-git-gateway/authorized_keys
+ForceCommand /usr/bin/sudo -u real-user /usr/local/libexec/agent-git-gateway --allowlist /etc/agent-git-gateway/repos.conf --ssh-config /etc/agent-git-gateway/downstream_ssh_config --downstream-host github.com-agent-gateway

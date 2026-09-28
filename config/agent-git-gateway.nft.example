@@ -1,0 +1,7 @@
+table inet agent_git_gateway {
+    chain output {
+        type filter hook output priority 0; policy accept;
+        meta skuid "agent-user" ip daddr != 127.0.0.1 tcp dport 22 reject with icmpx type admin-prohibited
+        meta skuid "agent-user" ip6 daddr != ::1 tcp dport 22 reject with icmpx type admin-prohibited
+    }
+}

@@ -1,0 +1,11 @@
+Host github.com
+    HostName 127.0.0.1
+    Port 2222
+    User git
+    IdentityFile /home/agent-user/.ssh/agent-gateway-ed25519
+    IdentitiesOnly yes
+    PreferredAuthentications publickey
+    PubkeyAuthentication yes
+    PasswordAuthentication no
+    KbdInteractiveAuthentication no
+    RequestTTY no
