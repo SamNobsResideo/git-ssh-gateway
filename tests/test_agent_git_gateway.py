@@ -26,6 +26,9 @@ class NormalizeRepositoryTests(unittest.TestCase):
                 with self.assertRaises(agent_git_gateway.GatewayError):
                     agent_git_gateway.normalize_repository(repository)
 
+    def test_accepts_single_scp_style_separator(self) -> None:
+        self.assertEqual(agent_git_gateway.normalize_repository("company:allowed-repo.git"), "company/allowed-repo")
+
 
 class NormalizeRepositoryPatternTests(unittest.TestCase):
     def test_normalizes_wildcard_pattern(self) -> None:
@@ -221,6 +224,11 @@ class RepositoryRuleTests(unittest.TestCase):
     def test_unknown_rule_action_is_rejected(self) -> None:
         with self.assertRaises(agent_git_gateway.GatewayError) as context:
             agent_git_gateway.parse_rule_line("block company/repo")
+        self.assertEqual(context.exception.reason, "invalid-rule")
+
+    def test_explicit_rule_with_extra_tokens_is_rejected(self) -> None:
+        with self.assertRaises(agent_git_gateway.GatewayError) as context:
+            agent_git_gateway.parse_rule_line("allow company/repo extra")
         self.assertEqual(context.exception.reason, "invalid-rule")
 
 

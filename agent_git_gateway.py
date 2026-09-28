@@ -75,6 +75,10 @@ def normalize_repository(raw_repository: str) -> str:
         raise GatewayError("invalid-repository", "NUL byte in repository path")
     if any(character.isspace() for character in repository):
         raise GatewayError("invalid-repository", "whitespace not allowed in repository path")
+    if repository.startswith(":"):
+        repository = repository[1:]
+    elif repository.count(":") == 1 and "/" not in repository:
+        repository = repository.replace(":", "/", 1)
     if "\\" in repository or ":" in repository:
         raise GatewayError("invalid-repository", "unsupported repository path separator")
 
@@ -160,12 +164,13 @@ def parse_rule_line(line: str) -> RepositoryRule:
     action = "allow"
     pattern_text = line
     if " " in line or "\t" in line:
-        tokens = line.split(None, 1)
-        if len(tokens) == 2:
-            if tokens[0] in {"allow", "deny"}:
-                action, pattern_text = tokens
-            else:
-                raise GatewayError("invalid-rule", f"unknown repository rule action {tokens[0]!r}")
+        tokens = line.split()
+        if tokens[0] in {"allow", "deny"}:
+            if len(tokens) != 2:
+                raise GatewayError("invalid-rule", f"repository rule {tokens[0]!r} must contain exactly one pattern")
+            action, pattern_text = tokens
+        else:
+            raise GatewayError("invalid-rule", f"unknown repository rule action {tokens[0]!r}")
     elif line in {"allow", "deny"}:
         raise GatewayError("invalid-rule", f"repository rule {line!r} is missing a pattern")
     return RepositoryRule(action=action, pattern=normalize_repository_pattern(pattern_text))
