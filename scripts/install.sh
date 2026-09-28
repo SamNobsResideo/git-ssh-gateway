@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eu
 
+# This installer targets Ubuntu/Linux systems with GNU userland tools.
+
 if [ "$(id -u)" -ne 0 ]; then
     echo "install.sh must be run as root" >&2
     exit 1
@@ -103,7 +105,10 @@ chown root:root "$LIBEXEC_DIR/agent-git-gateway-force-command"
 chmod 0600 "$INSTALL_DIR/ssh_host_ed25519_key"
 chmod 0644 "$INSTALL_DIR/ssh_host_ed25519_key.pub"
 
+old_umask="$(umask)"
+umask 077
 sudoers_tmp="$(mktemp)"
+umask "$old_umask"
 trap 'rm -f "$sudoers_tmp"' EXIT
 
 cat >"$sudoers_tmp" <<EOF

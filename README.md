@@ -88,6 +88,8 @@ string to a shell.
 The example installation uses a locked local `git` account because standard GitHub SSH URLs
 already target `git@github.com`, and OpenSSH preserves that username from the client URL.
 The gateway command itself still runs as `real-user` via a tightly scoped `sudo -n` rule.
+The included installer targets Ubuntu/Linux with GNU userland tools, which matches the intended
+deployment environment for this project.
 
 1. Ensure permissions remain strict:
 
