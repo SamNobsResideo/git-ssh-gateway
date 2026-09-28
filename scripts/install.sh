@@ -120,6 +120,7 @@ EOF
 chmod 0440 "$sudoers_tmp"
 visudo -cf "$sudoers_tmp"
 install -m 0440 "$sudoers_tmp" /etc/sudoers.d/agent-git-gateway
+visudo -cf /etc/sudoers.d/agent-git-gateway
 
 systemctl daemon-reload
 systemctl enable --now agent-git-gateway-sshd.service

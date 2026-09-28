@@ -7,6 +7,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 systemctl disable --now agent-git-gateway-sshd.service 2>/dev/null || true
+systemctl reset-failed agent-git-gateway-sshd.service 2>/dev/null || true
 rm -f /etc/systemd/system/agent-git-gateway-sshd.service
 rm -f /etc/sudoers.d/agent-git-gateway
 rm -f /usr/local/libexec/agent-git-gateway
