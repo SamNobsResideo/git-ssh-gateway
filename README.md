@@ -159,7 +159,8 @@ and groups it to `real-user`.
 ### Local sshd configuration
 
 The dedicated sshd instance must listen only on loopback (`127.0.0.1:2222`), authenticate only
-the gateway key, force the gateway command, and disable interactive features:
+the gateway key, accept `GIT_PROTOCOL`, force the gateway command, and disable interactive
+features:
 
 - no shell
 - no PTY
@@ -180,6 +181,7 @@ Host github.com
     HostName 127.0.0.1
     Port 2222
     User git
+    SendEnv GIT_PROTOCOL
     IdentityFile /home/agent-user/.ssh/agent-gateway-ed25519
 ```
 

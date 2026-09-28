@@ -2,6 +2,7 @@ Host github.com
     HostName 127.0.0.1
     Port 2222
     User git
+    SendEnv GIT_PROTOCOL
     IdentityFile /home/agent-user/.ssh/agent-gateway-ed25519
     IdentitiesOnly yes
     PreferredAuthentications publickey

@@ -8,6 +8,7 @@ PasswordAuthentication no
 KbdInteractiveAuthentication no
 ChallengeResponseAuthentication no
 PubkeyAuthentication yes
+AcceptEnv GIT_PROTOCOL
 PermitRootLogin no
 AllowUsers git
 PermitEmptyPasswords no
@@ -21,4 +22,4 @@ PermitTTY no
 PermitListen none
 DisableForwarding yes
 AuthorizedKeysFile /etc/agent-git-gateway/authorized_keys
-ForceCommand /usr/bin/sudo -n -u real-user --preserve-env=SSH_ORIGINAL_COMMAND /usr/local/libexec/agent-git-gateway --allowlist /etc/agent-git-gateway/repos.conf --ssh-config /etc/agent-git-gateway/downstream_ssh_config --downstream-host github.com-agent-gateway
+ForceCommand /usr/bin/sudo -n -u real-user --preserve-env=SSH_ORIGINAL_COMMAND,GIT_PROTOCOL /usr/local/libexec/agent-git-gateway --allowlist /etc/agent-git-gateway/repos.conf --ssh-config /etc/agent-git-gateway/downstream_ssh_config --downstream-host github.com-agent-gateway

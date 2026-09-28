@@ -73,7 +73,12 @@ if [ -n "$readable_files" ]; then
 fi
 
 echo "== Network isolation =="
-if ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no git@140.82.112.3 true; then
+if python3 - <<'PY'
+import socket
+
+socket.create_connection(("github.com", 22), timeout=5)
+PY
+then
     echo "unexpected success: direct SSH egress" >&2
     exit 1
 fi

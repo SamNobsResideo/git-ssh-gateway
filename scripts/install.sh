@@ -28,7 +28,7 @@ if ! id "$REAL_USER" >/dev/null 2>&1; then
 fi
 
 install -d -m 0755 "$LIBEXEC_DIR"
-install -d -m 0750 "$INSTALL_DIR"
+install -d -m 0750 -o root -g "$REAL_USER" "$INSTALL_DIR"
 install -m 0755 "$REPO_ROOT/agent_git_gateway.py" "$LIBEXEC_DIR/agent-git-gateway"
 install -m 0640 "$REPO_ROOT/config/repos.conf.example" "$INSTALL_DIR/repos.conf"
 install -m 0600 "$REPO_ROOT/config/sshd_config.gateway.example" "$INSTALL_DIR/sshd_config"
@@ -77,7 +77,7 @@ chmod 0644 "$INSTALL_DIR/ssh_host_ed25519_key.pub"
 cat >/etc/sudoers.d/agent-git-gateway <<EOF
 git ALL=($REAL_USER) NOPASSWD: $LIBEXEC_DIR/agent-git-gateway --allowlist $INSTALL_DIR/repos.conf --ssh-config $INSTALL_DIR/downstream_ssh_config --downstream-host github.com-agent-gateway
 Defaults!$LIBEXEC_DIR/agent-git-gateway !requiretty
-Defaults!$LIBEXEC_DIR/agent-git-gateway env_keep += "SSH_ORIGINAL_COMMAND"
+Defaults!$LIBEXEC_DIR/agent-git-gateway env_keep += "SSH_ORIGINAL_COMMAND GIT_PROTOCOL"
 EOF
 chmod 0440 /etc/sudoers.d/agent-git-gateway
 
