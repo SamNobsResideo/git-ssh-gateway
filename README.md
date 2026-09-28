@@ -86,8 +86,10 @@ string to a shell.
 
 ## Installation
 
-The example installation uses a locked local `git` account because standard GitHub SSH URLs
+The example installation uses a dedicated local `git` account because standard GitHub SSH URLs
 already target `git@github.com`, and OpenSSH preserves that username from the client URL.
+That account should have a no-login shell and an unusable password hash, but it must not remain
+shadow-locked on Ubuntu because sshd rejects locked accounts before public-key authentication.
 The gateway command itself still runs as `real-user` via a tightly scoped `sudo -n` rule.
 The included installer targets Ubuntu/Linux with GNU userland tools, which matches the intended
 deployment environment for this project.
@@ -343,8 +345,8 @@ sudo ./scripts/uninstall.sh
 ```
 
 The uninstall script removes the dedicated sshd service, sudoers entry, installed files, and
-configuration directory. It intentionally leaves the locked `git` account in place for an
-administrator to review or remove explicitly.
+configuration directory. It intentionally leaves the dedicated local `git` account in place for
+an administrator to review or remove explicitly.
 
 ## Security assumptions
 

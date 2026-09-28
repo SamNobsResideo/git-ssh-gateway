@@ -59,7 +59,9 @@ install -m 0640 "$REPO_ROOT/config/downstream_ssh_config.example" "$INSTALL_DIR/
 install -m 0644 "$REPO_ROOT/systemd/agent-git-gateway-sshd.service" /etc/systemd/system/agent-git-gateway-sshd.service
 
 if ! id git >/dev/null 2>&1; then
-    useradd --home-dir /nonexistent --shell /usr/sbin/nologin --system git
+    useradd --home-dir /nonexistent --shell /usr/sbin/nologin --password '*' --system git
+else
+    usermod --home /nonexistent --shell /usr/sbin/nologin --password '*' git
 fi
 
 if [ ! -f "$INSTALL_DIR/authorized_keys" ]; then
