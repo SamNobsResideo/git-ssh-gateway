@@ -132,7 +132,7 @@ def load_allowlist(path: str | os.PathLike[str]) -> set[str]:
 
 
 def build_remote_command(repository: str) -> str:
-    return f"git-upload-pack {repository}.git"
+    return f"git-upload-pack {shlex.quote(repository + '.git')}"
 
 
 def build_downstream_command(
