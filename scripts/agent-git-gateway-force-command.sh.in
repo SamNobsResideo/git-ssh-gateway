@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+SSH_GATEWAY_ORIGINAL_USER="${SUDO_USER:-${USER:-unknown}}"
+export SSH_GATEWAY_ORIGINAL_USER
+
+exec /usr/local/libexec/agent-git-gateway \
+    --run-as-user @REAL_USER@ \
+    --allowlist /etc/agent-git-gateway/repos.conf \
+    --ssh-config /etc/agent-git-gateway/downstream_ssh_config \
+    --downstream-host github.com-agent-gateway

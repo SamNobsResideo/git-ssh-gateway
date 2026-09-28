@@ -1,0 +1,13 @@
+Host github.com-agent-gateway
+    HostName github.com
+    User git
+    IdentityFile @GITHUB_KEY_PATH@
+    IdentitiesOnly yes
+    StrictHostKeyChecking yes
+    UserKnownHostsFile /etc/agent-git-gateway/github_known_hosts
+    BatchMode yes
+    PubkeyAuthentication yes
+    PasswordAuthentication no
+    KbdInteractiveAuthentication no
+    RequestTTY no
+    PermitLocalCommand no

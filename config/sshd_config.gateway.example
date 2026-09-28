@@ -1,0 +1,27 @@
+Port 2222
+ListenAddress 127.0.0.1
+AddressFamily inet
+Protocol 2
+UsePAM no
+LogLevel VERBOSE
+HostKey /etc/agent-git-gateway/ssh_host_ed25519_key
+PidFile /run/agent-git-gateway-sshd.pid
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+PubkeyAuthentication yes
+AcceptEnv GIT_PROTOCOL
+PermitRootLogin no
+AllowUsers git
+PermitEmptyPasswords no
+PermitUserEnvironment no
+AllowAgentForwarding no
+AllowTcpForwarding no
+GatewayPorts no
+X11Forwarding no
+PermitTunnel no
+PermitTTY no
+PermitListen none
+DisableForwarding yes
+AuthorizedKeysFile /etc/agent-git-gateway/authorized_keys
+ForceCommand /usr/bin/sudo -n -u @REAL_USER@ --preserve-env=SSH_ORIGINAL_COMMAND,GIT_PROTOCOL,SSH_GATEWAY_ORIGINAL_USER /usr/local/libexec/agent-git-gateway-force-command
