@@ -71,14 +71,20 @@ if [ ! -f "$INSTALL_DIR/github_known_hosts" ]; then
     install -m 0640 /dev/null "$INSTALL_DIR/github_known_hosts"
 fi
 
-python3 - "$INSTALL_DIR/downstream_ssh_config" "$LIBEXEC_DIR/agent-git-gateway-force-command" "$REAL_USER" "$GITHUB_KEY_PATH" <<'PY'
+python3 - "$INSTALL_DIR/sshd_config" "$INSTALL_DIR/downstream_ssh_config" "$LIBEXEC_DIR/agent-git-gateway-force-command" "$REAL_USER" "$GITHUB_KEY_PATH" <<'PY'
 from pathlib import Path
 import sys
 
-downstream_config = Path(sys.argv[1])
-force_command = Path(sys.argv[2])
-real_user = sys.argv[3]
-github_key_path = sys.argv[4]
+sshd_config = Path(sys.argv[1])
+downstream_config = Path(sys.argv[2])
+force_command = Path(sys.argv[3])
+real_user = sys.argv[4]
+github_key_path = sys.argv[5]
+
+sshd_config.write_text(
+    sshd_config.read_text(encoding="utf-8").replace("@REAL_USER@", real_user),
+    encoding="utf-8",
+)
 
 downstream_config.write_text(
     downstream_config.read_text(encoding="utf-8").replace("@GITHUB_KEY_PATH@", github_key_path),
@@ -98,9 +104,9 @@ chmod 0600 "$INSTALL_DIR/ssh_host_ed25519_key"
 chmod 0644 "$INSTALL_DIR/ssh_host_ed25519_key.pub"
 
 cat >/etc/sudoers.d/agent-git-gateway <<EOF
-git ALL=($REAL_USER) NOPASSWD: $LIBEXEC_DIR/agent-git-gateway --allowlist $INSTALL_DIR/repos.conf --ssh-config $INSTALL_DIR/downstream_ssh_config --downstream-host github.com-agent-gateway
-Defaults!$LIBEXEC_DIR/agent-git-gateway !requiretty
-Defaults!$LIBEXEC_DIR/agent-git-gateway env_keep += "SSH_ORIGINAL_COMMAND GIT_PROTOCOL"
+git ALL=($REAL_USER) NOPASSWD: $LIBEXEC_DIR/agent-git-gateway-force-command
+Defaults!$LIBEXEC_DIR/agent-git-gateway-force-command !requiretty
+Defaults!$LIBEXEC_DIR/agent-git-gateway-force-command env_keep += "SSH_ORIGINAL_COMMAND GIT_PROTOCOL"
 EOF
 chmod 0440 /etc/sudoers.d/agent-git-gateway
 visudo -cf /etc/sudoers.d/agent-git-gateway

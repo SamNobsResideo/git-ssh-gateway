@@ -1,9 +1,8 @@
 #!/bin/sh
 set -eu
 
-exec /usr/bin/sudo -n -u @REAL_USER@ \
-    --preserve-env=SSH_ORIGINAL_COMMAND,GIT_PROTOCOL \
-    /usr/local/libexec/agent-git-gateway \
+exec /usr/local/libexec/agent-git-gateway \
+    --run-as-user @REAL_USER@ \
     --allowlist /etc/agent-git-gateway/repos.conf \
     --ssh-config /etc/agent-git-gateway/downstream_ssh_config \
     --downstream-host github.com-agent-gateway

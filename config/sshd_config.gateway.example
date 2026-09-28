@@ -22,4 +22,4 @@ PermitTTY no
 PermitListen none
 DisableForwarding yes
 AuthorizedKeysFile /etc/agent-git-gateway/authorized_keys
-ForceCommand /usr/local/libexec/agent-git-gateway-force-command
+ForceCommand /usr/bin/sudo -n -u @REAL_USER@ --preserve-env=SSH_ORIGINAL_COMMAND,GIT_PROTOCOL /usr/local/libexec/agent-git-gateway-force-command

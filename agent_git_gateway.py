@@ -155,12 +155,14 @@ def run_gateway(
     ssh_binary: str = "/usr/bin/ssh",
     environment: dict[str, str] | None = None,
     request_user: str | None = None,
+    run_as_user: str | None = None,
     runner=subprocess.run,
     logger: logging.Logger | None = None,
 ) -> int:
     logger = logger or configure_logging()
     environment = dict(environment or os.environ)
     request_user = request_user or environment.get("LOGNAME") or environment.get("USER") or getpass.getuser()
+    run_as_user = run_as_user or pwd.getpwuid(os.geteuid()).pw_name
 
     operation, repository = parse_original_command(original_command)
     allowed_repositories = load_allowlist(allowlist_path)
@@ -173,7 +175,7 @@ def run_gateway(
         )
 
     downstream_environment = {"PATH": environment.get("PATH", "/usr/bin:/bin")}
-    downstream_environment["HOME"] = pwd.getpwuid(os.geteuid()).pw_dir
+    downstream_environment["HOME"] = pwd.getpwnam(run_as_user).pw_dir
     if "GIT_PROTOCOL" in environment:
         downstream_environment["GIT_PROTOCOL"] = environment["GIT_PROTOCOL"]
 
@@ -199,6 +201,10 @@ def build_argument_parser() -> argparse.ArgumentParser:
         default="github.com-agent-gateway",
         help="SSH host alias used for the downstream GitHub connection",
     )
+    parser.add_argument(
+        "--run-as-user",
+        help="User account whose home directory should be used for downstream SSH",
+    )
     return parser
 
 
@@ -213,6 +219,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             allowlist_path=args.allowlist,
             ssh_config=args.ssh_config,
             downstream_host=args.downstream_host,
+            run_as_user=args.run_as_user,
             logger=logger,
         )
     except GatewayError as error:
