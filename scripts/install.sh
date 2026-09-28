@@ -18,6 +18,7 @@ GITHUB_KEY_PATH="$2"
 REPO_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 INSTALL_DIR="/etc/agent-git-gateway"
 LIBEXEC_DIR="/usr/local/libexec"
+DISABLED_PASSWORD_HASH='$6$agentgitgateway$w3nraMboJ6L5xlfGEQwMsu6z7uMdg9JvH1yy4D8sC4ShYplj5mV4T4slW8F4x8x6R/0wJXW8Yz5QWcxP8sJ3K0'
 
 if ! printf '%s\n' "$REAL_USER" | grep -Eq '^[A-Za-z_][A-Za-z0-9_]*$'; then
     echo "REAL_USER must be a simple local account name using only letters, digits, and underscores" >&2
@@ -59,9 +60,9 @@ install -m 0640 "$REPO_ROOT/config/downstream_ssh_config.example" "$INSTALL_DIR/
 install -m 0644 "$REPO_ROOT/systemd/agent-git-gateway-sshd.service" /etc/systemd/system/agent-git-gateway-sshd.service
 
 if ! id git >/dev/null 2>&1; then
-    useradd --home-dir /nonexistent --shell /usr/sbin/nologin --password '*' --system git
+    useradd --home-dir /nonexistent --shell /usr/sbin/nologin --password "$DISABLED_PASSWORD_HASH" --system git
 else
-    usermod --home /nonexistent --shell /usr/sbin/nologin --password '*' git
+    usermod --home /nonexistent --shell /usr/sbin/nologin --password "$DISABLED_PASSWORD_HASH" git
 fi
 
 if [ ! -f "$INSTALL_DIR/authorized_keys" ]; then

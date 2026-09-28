@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/sbin/sshd -D -f /etc/agent-git-gateway/sshd_config
+ExecStart=/usr/sbin/sshd -D -e -f /etc/agent-git-gateway/sshd_config
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=2

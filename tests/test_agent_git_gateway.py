@@ -190,6 +190,18 @@ class RunGatewayTests(unittest.TestCase):
             )
         self.assertEqual(context.exception.reason, "repository-not-allowed")
 
+    def test_deny_rule_overrides_allow_regardless_of_order(self) -> None:
+        self.allowlist.write_text("deny */*\nallow company/allowed-repo\n", encoding="utf-8")
+
+        with self.assertRaises(agent_git_gateway.GatewayError) as context:
+            agent_git_gateway.run_gateway(
+                original_command="git-upload-pack 'company/allowed-repo.git'",
+                allowlist_path=self.allowlist,
+                ssh_config=self.ssh_config,
+                downstream_host="github.com-agent-gateway",
+            )
+        self.assertEqual(context.exception.reason, "repository-not-allowed")
+
     def test_bare_rule_is_treated_as_allow(self) -> None:
         rules = agent_git_gateway.load_repository_rules(self.allowlist)
         self.assertEqual(rules, [agent_git_gateway.RepositoryRule(action="allow", pattern="company/allowed-repo")])

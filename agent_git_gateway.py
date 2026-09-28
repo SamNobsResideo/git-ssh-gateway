@@ -202,13 +202,15 @@ def pattern_matches_repository(pattern: str, repository: str) -> bool:
 
 def repository_is_allowed(repository: str, rules: list[RepositoryRule]) -> bool:
     allow_matched = False
+    deny_matched = False
     for rule in rules:
         if not pattern_matches_repository(rule.pattern, repository):
             continue
         if rule.action == "deny":
-            return False
-        allow_matched = True
-    return allow_matched
+            deny_matched = True
+        else:
+            allow_matched = True
+    return allow_matched and not deny_matched
 
 
 def build_remote_command(repository: str) -> str:
