@@ -168,6 +168,8 @@ Populate that known-hosts file explicitly, for example:
 sudo ssh-keyscan github.com >> /etc/agent-git-gateway/github_known_hosts
 ```
 
+Verify the scanned key against GitHub's published SSH host fingerprints before trusting it.
+
 ### Local sshd configuration
 
 The dedicated sshd instance must listen only on loopback (`127.0.0.1:2222`), authenticate only

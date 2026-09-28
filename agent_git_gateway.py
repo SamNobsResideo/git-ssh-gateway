@@ -121,7 +121,7 @@ def load_allowlist(path: str | os.PathLike[str]) -> set[str]:
 
 
 def build_remote_command(repository: str) -> str:
-    return f"git-upload-pack {shlex.quote(repository + '.git')}"
+    return f"git-upload-pack {repository}.git"
 
 
 def build_downstream_command(
@@ -173,7 +173,7 @@ def run_gateway(
         )
 
     downstream_environment = {"PATH": environment.get("PATH", "/usr/bin:/bin")}
-    downstream_environment["HOME"] = pwd.getpwuid(os.getuid()).pw_dir
+    downstream_environment["HOME"] = pwd.getpwuid(os.geteuid()).pw_dir
     if "GIT_PROTOCOL" in environment:
         downstream_environment["GIT_PROTOCOL"] = environment["GIT_PROTOCOL"]
 

@@ -86,7 +86,7 @@ class RunGatewayTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         command, env, check = calls[0]
         self.assertEqual(check, False)
-        self.assertEqual(env["HOME"], pwd.getpwuid(os.getuid()).pw_dir)
+        self.assertEqual(env["HOME"], pwd.getpwuid(os.geteuid()).pw_dir)
         self.assertEqual(env["GIT_PROTOCOL"], "version=2")
         self.assertIn("SendEnv=GIT_PROTOCOL", command)
         self.assertEqual(command[-1], "git-upload-pack company/allowed-repo.git")
@@ -126,7 +126,7 @@ class RunGatewayTests(unittest.TestCase):
 
         self.assertEqual(return_code, 0)
         self.assertNotIn("GIT_PROTOCOL", calls[0][1])
-        self.assertEqual(calls[0][1]["HOME"], pwd.getpwuid(os.getuid()).pw_dir)
+        self.assertEqual(calls[0][1]["HOME"], pwd.getpwuid(os.geteuid()).pw_dir)
 
 
 if __name__ == "__main__":

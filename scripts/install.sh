@@ -110,6 +110,7 @@ Defaults!$LIBEXEC_DIR/agent-git-gateway !requiretty
 Defaults!$LIBEXEC_DIR/agent-git-gateway env_keep += "SSH_ORIGINAL_COMMAND GIT_PROTOCOL"
 EOF
 chmod 0440 /etc/sudoers.d/agent-git-gateway
+visudo -cf /etc/sudoers.d/agent-git-gateway
 
 systemctl daemon-reload
 systemctl enable --now agent-git-gateway-sshd.service
