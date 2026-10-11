@@ -89,14 +89,32 @@ string to a shell.
 
 The example installation uses a dedicated local `git` account because standard GitHub SSH URLs
 already target `git@github.com`, and OpenSSH preserves that username from the client URL.
-That account should have a no-login shell and an unusable password hash, but it must not remain
-shadow-locked on Ubuntu because sshd rejects locked accounts before public-key authentication.
+That account must use `/bin/sh`: OpenSSH executes even `ForceCommand` through the account's
+shell with `-c`. `/usr/sbin/nologin` prevents the gateway from running and prints
+`This account is currently not available.` into the Git protocol stream.
+The dedicated daemon's `ForceCommand`, disabled passwords, disabled PTYs, and disabled forwarding
+prevent interactive SSH access; a no-login shell is not the mechanism enforcing that restriction.
+The account has an unusable password hash, but must not remain shadow-locked on Ubuntu because
+sshd rejects locked accounts before public-key authentication.
 The installer now gives that local account a dedicated home directory under
 `/var/lib/agent-git-gateway/git-home` so the loopback sshd does not depend on `/nonexistent`
 or other missing-home edge cases.
 The gateway command itself still runs as `real-user` via a tightly scoped `sudo -n` rule.
 The included installer targets Ubuntu/Linux with GNU userland tools, which matches the intended
 deployment environment for this project.
+The `git` account must be dedicated to this gateway. If another SSH daemon permits this account,
+restrict or deny it there too: the loopback daemon's `ForceCommand` does not apply to other daemons.
+
+The installer uses `/etc/agent-git-gateway` mode `0755`, owned by `root:root`, and
+`authorized_keys` mode `0644`, also owned by `root:root`. This lets the authenticating `git`
+account traverse the directory and read the public authorization entries without modifying them.
+Private host keys remain `0600`, and downstream configuration and repository rules remain `0640`.
+Do not recursively loosen permissions on this directory.
+
+Reinstalling preserves existing authorization keys, host keys, known hosts, and repository rules,
+and repairs authorization-file permissions. It regenerates `sshd_config` and
+`downstream_ssh_config` from the templates and restarts the dedicated daemon, so back up any
+customizations to those two files first. Uninstalling deletes the configuration directory.
 
 1. Ensure permissions remain strict:
 
@@ -344,6 +362,7 @@ The tests cover:
 - explicit `run_as_user` HOME selection for downstream SSH
 - LFS download authentication, rejection of upload/unsafe requests, and repository policy
 - unchanged authentication JSON on stdout, stderr-only diagnostics, and downstream exit status
+- installer public-key permissions, preserved keys/policy, and forced-command shell configuration
 
 ## Manual security verification
 
@@ -370,6 +389,24 @@ resolve to the same repository rule target; traversal and extra-argument variant
 
 ## Troubleshooting
 
+- If authentication fails after reinstalling, check that `git` can read
+  `/etc/agent-git-gateway/authorized_keys` and that it still contains the offered public key.
+  Reinstalling this version repairs the directory and file permissions; it cannot restore keys
+  deleted by an uninstall.
+- If Git fails with `bad line length character: This` after authentication succeeds, check
+  `getent passwd git`: `/usr/sbin/nologin` emits text instead of executing the forced command.
+  Reinstall this version, or repair an existing dedicated gateway installation with:
+
+  ```bash
+  sudo usermod --shell /bin/sh git
+  sudo chown root:root /etc/agent-git-gateway /etc/agent-git-gateway/authorized_keys
+  sudo chmod 0755 /etc/agent-git-gateway
+  sudo chmod 0644 /etc/agent-git-gateway/authorized_keys
+  ```
+
+  Keep the dedicated daemon's `ForceCommand` and forwarding restrictions in place, and ensure
+  other SSH daemons do not allow unrestricted access to `git`. Retry `git pull`; these shell
+  and permission repairs alone do not require a daemon restart.
 - If LFS fails with "command must contain exactly an operation and a repository", update the
   installed gateway implementation to this LFS-aware version. The old parser accepts only
   two-argument `git-upload-pack` requests.
