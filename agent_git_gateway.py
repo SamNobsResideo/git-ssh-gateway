@@ -232,7 +232,7 @@ def repository_is_allowed(repository: str, rules: list[RepositoryRule]) -> bool:
 def build_remote_command(repository: str, operation: str = "git-upload-pack") -> str:
     if operation not in {"git-upload-pack", "git-lfs-authenticate"}:
         raise GatewayError("operation-not-allowed", "unsupported downstream operation", operation=operation)
-    command = f"{operation} {shlex.quote(normalize_repository(repository) + '.git')}"
+    command = f"{operation} {shlex.quote(repository + '.git')}"
     if operation == "git-lfs-authenticate":
         command += " download"
     return command

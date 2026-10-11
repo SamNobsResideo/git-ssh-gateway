@@ -127,15 +127,23 @@ class BuildRemoteCommandTests(unittest.TestCase):
 
     def test_lfs_download_command(self) -> None:
         self.assertEqual(
-            agent_git_gateway.build_remote_command("/./company//allowed-repo.git", "git-lfs-authenticate"),
+            agent_git_gateway.build_remote_command("company/allowed-repo", "git-lfs-authenticate"),
             "git-lfs-authenticate company/allowed-repo.git download",
         )
 
-    def test_rejects_unsupported_downstream_operations_and_unsafe_paths(self) -> None:
+    def test_rejects_unsupported_downstream_operations(self) -> None:
         with self.assertRaises(agent_git_gateway.GatewayError):
             agent_git_gateway.build_remote_command("company/repo", "git-receive-pack")
-        with self.assertRaises(agent_git_gateway.GatewayError):
-            agent_git_gateway.build_remote_command("company/repo;uname", "git-lfs-authenticate")
+
+    def test_quotes_repository_without_renormalizing(self) -> None:
+        self.assertEqual(
+            agent_git_gateway.build_remote_command("company/repo;uname", "git-lfs-authenticate"),
+            "git-lfs-authenticate 'company/repo;uname.git' download",
+        )
+        self.assertEqual(
+            agent_git_gateway.build_remote_command("company/repo.git", "git-lfs-authenticate"),
+            "git-lfs-authenticate company/repo.git.git download",
+        )
 
 
 class RunGatewayTests(unittest.TestCase):
@@ -198,6 +206,25 @@ class RunGatewayTests(unittest.TestCase):
                     )
                 self.assertEqual(context.exception.reason, reason)
                 runner.assert_not_called()
+
+    def test_dispatches_exact_policy_checked_repository_with_repeated_suffix(self) -> None:
+        self.allowlist.write_text("allow company/*\ndeny company/private-repo\n", encoding="utf-8")
+        for operation, action in (("git-upload-pack", ""), ("git-lfs-authenticate", " download")):
+            with self.subTest(operation=operation):
+                calls = []
+
+                def fake_runner(command, env, check):
+                    calls.append(command)
+                    return SimpleNamespace(returncode=0)
+
+                agent_git_gateway.run_gateway(
+                    original_command=f"{operation} company/private-repo.git.git{action}",
+                    allowlist_path=self.allowlist,
+                    ssh_config=self.ssh_config,
+                    downstream_host="github.com-agent-gateway",
+                    runner=fake_runner,
+                )
+                self.assertEqual(calls[0][-1], f"{operation} company/private-repo.git.git{action}")
 
     def test_lfs_authentication_json_is_relayed_without_logging_it(self) -> None:
         payload = b'{"href":"https://example.invalid/lfs","header":{"Authorization":"test-only-placeholder"},"expires_in":60}\n'
