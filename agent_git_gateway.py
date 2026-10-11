@@ -147,6 +147,22 @@ def parse_original_command(original_command: str | None) -> tuple[str, str]:
     except ValueError as error:
         raise GatewayError("invalid-command", f"unable to parse SSH_ORIGINAL_COMMAND: {error}") from error
 
+    if tokens and tokens[0] == "git-lfs-authenticate":
+        if len(tokens) != 3:
+            raise GatewayError(
+                "invalid-command",
+                "LFS authentication command must contain exactly an operation, a repository, and download",
+                operation=tokens[0],
+            )
+        operation, repository, action = tokens
+        if action != "download":
+            raise GatewayError(
+                "operation-not-allowed",
+                "only LFS download authentication is allowed",
+                operation=operation,
+            )
+        return operation, normalize_repository(repository)
+
     if len(tokens) != 2:
         raise GatewayError("invalid-command", "command must contain exactly an operation and a repository")
 
@@ -213,8 +229,13 @@ def repository_is_allowed(repository: str, rules: list[RepositoryRule]) -> bool:
     return allow_matched and not deny_matched
 
 
-def build_remote_command(repository: str) -> str:
-    return f"git-upload-pack {shlex.quote(repository + '.git')}"
+def build_remote_command(repository: str, operation: str = "git-upload-pack") -> str:
+    if operation not in {"git-upload-pack", "git-lfs-authenticate"}:
+        raise GatewayError("operation-not-allowed", "unsupported downstream operation", operation=operation)
+    command = f"{operation} {shlex.quote(normalize_repository(repository) + '.git')}"
+    if operation == "git-lfs-authenticate":
+        command += " download"
+    return command
 
 
 def build_downstream_command(
@@ -222,6 +243,7 @@ def build_downstream_command(
     ssh_config: str | os.PathLike[str],
     downstream_host: str,
     repository: str,
+    operation: str = "git-upload-pack",
 ) -> list[str]:
     return [
         ssh_binary,
@@ -235,7 +257,7 @@ def build_downstream_command(
         "-o",
         "SendEnv=GIT_PROTOCOL",
         downstream_host,
-        build_remote_command(repository),
+        build_remote_command(repository, operation),
     ]
 
 
@@ -272,7 +294,7 @@ def run_gateway(
     if "GIT_PROTOCOL" in environment:
         downstream_environment["GIT_PROTOCOL"] = environment["GIT_PROTOCOL"]
 
-    command = build_downstream_command(ssh_binary, ssh_config, downstream_host, repository)
+    command = build_downstream_command(ssh_binary, ssh_config, downstream_host, repository, operation)
     completed = runner(command, env=downstream_environment, check=False)
     return_code = completed.returncode if hasattr(completed, "returncode") else int(completed)
     logger.info(
