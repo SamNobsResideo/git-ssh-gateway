@@ -49,8 +49,9 @@ Security comes from four layers:
 3. gateway-side command validation (`ForceCommand` + `SSH_ORIGINAL_COMMAND`)
 4. repository policy enforcement
 
-This gateway covers only Git-over-SSH. It does **not** provide GitHub API, `gh`, HTTPS Git,
-REST, or GraphQL access.
+This gateway covers Git-over-SSH and SSH authentication for Git LFS downloads. It does **not**
+provide general GitHub API, `gh`, HTTPS Git, REST, or GraphQL access. LFS authentication returns
+temporary HTTPS credentials to the agent; see the LFS security boundary below.
 
 ## Repository layout
 
@@ -73,12 +74,12 @@ REST, or GraphQL access.
 1. reads `SSH_ORIGINAL_COMMAND`
 2. rejects missing or malformed commands
 3. parses the command with `shlex.split()` instead of a shell
-4. permits only the exact operation `git-upload-pack`
+4. permits only `git-upload-pack` or `git-lfs-authenticate` with the exact action `download`
 5. canonicalizes the repository path to `owner/repository`
 6. checks the repository against the configured allow/deny rules
 7. opens a second SSH session to GitHub using the downstream alias
 8. preserves `GIT_PROTOCOL` so Git protocol v2 works over SSH
-9. inherits stdin/stdout/stderr for the Git data stream
+9. inherits stdin/stdout/stderr for the Git data stream or LFS authentication JSON
 10. logs allow/deny decisions and downstream exit codes
 
 The implementation never uses `shell=True` and never forwards the raw `SSH_ORIGINAL_COMMAND`
@@ -88,14 +89,32 @@ string to a shell.
 
 The example installation uses a dedicated local `git` account because standard GitHub SSH URLs
 already target `git@github.com`, and OpenSSH preserves that username from the client URL.
-That account should have a no-login shell and an unusable password hash, but it must not remain
-shadow-locked on Ubuntu because sshd rejects locked accounts before public-key authentication.
+That account must use `/bin/sh`: OpenSSH executes even `ForceCommand` through the account's
+shell with `-c`. `/usr/sbin/nologin` prevents the gateway from running and prints
+`This account is currently not available.` into the Git protocol stream.
+The dedicated daemon's `ForceCommand`, disabled passwords, disabled PTYs, and disabled forwarding
+prevent interactive SSH access; a no-login shell is not the mechanism enforcing that restriction.
+The account has an unusable password hash, but must not remain shadow-locked on Ubuntu because
+sshd rejects locked accounts before public-key authentication.
 The installer now gives that local account a dedicated home directory under
 `/var/lib/agent-git-gateway/git-home` so the loopback sshd does not depend on `/nonexistent`
 or other missing-home edge cases.
 The gateway command itself still runs as `real-user` via a tightly scoped `sudo -n` rule.
 The included installer targets Ubuntu/Linux with GNU userland tools, which matches the intended
 deployment environment for this project.
+The `git` account must be dedicated to this gateway. If another SSH daemon permits this account,
+restrict or deny it there too: the loopback daemon's `ForceCommand` does not apply to other daemons.
+
+The installer uses `/etc/agent-git-gateway` mode `0755`, owned by `root:root`, and
+`authorized_keys` mode `0644`, also owned by `root:root`. This lets the authenticating `git`
+account traverse the directory and read the public authorization entries without modifying them.
+Private host keys remain `0600`, and downstream configuration and repository rules remain `0640`.
+Do not recursively loosen permissions on this directory.
+
+Reinstalling preserves existing authorization keys, host keys, known hosts, and repository rules,
+and repairs authorization-file permissions. It regenerates `sshd_config` and
+`downstream_ssh_config` from the templates and restarts the dedicated daemon, so back up any
+customizations to those two files first. Uninstalling deletes the configuration directory.
 
 1. Ensure permissions remain strict:
 
@@ -258,6 +277,61 @@ GIT_TRACE=1 GIT_TRACE_PACKET=1 git -c protocol.version=2 \
     ls-remote git@github.com:company/truman.git
 ```
 
+### Git LFS downloads
+
+For an allowed repository with an SSH remote, `git lfs pull` can authenticate through the gateway.
+Git LFS requests `git-lfs-authenticate owner/repository.git download`; the gateway applies the
+same repository rules as ordinary fetches and forwards only this validated download request to
+GitHub. LFS `upload`, unknown actions, extra arguments, and `git-lfs-transfer` are denied.
+
+GitHub returns authentication JSON containing an HTTPS endpoint and authorization headers.
+The gateway relays that response unchanged on stdout, without recording it in its audit logs.
+Git LFS then performs the batch request and object downloads **directly over HTTPS**, not through
+the SSH gateway. The agent needs outbound TCP/443 and DNS access to the returned LFS endpoints,
+including any storage or redirect hosts required for downloads. The example firewall blocks only
+outbound SSH; additional deployment firewalls or proxies may need HTTPS rules.
+
+Newer Git LFS clients may first probe `git-lfs-transfer` for pure SSH transfers. This operation
+is deliberately unsupported; clients using the normal hybrid transport fall back to
+`git-lfs-authenticate` after that probe fails. Clients configured to require pure SSH transfers
+must use hybrid transport instead (`git config lfs.sshtransfer never`; the default `negotiate`
+also permits fallback).
+
+#### LFS security boundary
+
+The GitHub private SSH key remains isolated, but LFS authentication intentionally exposes an
+HTTPS bearer credential to the agent. The gateway authorizes issuance for an allowed repository
+and the `download` action only; it cannot enforce what GitHub subsequently permits that
+credential to do, revoke it when repository rules change, or inspect direct HTTPS requests.
+Do not treat rejection of the SSH `upload` command as proof that a returned credential cannot
+authorize writes or access another repository.
+
+Credential scope and lifetime are controlled by the downstream provider. The Git LFS
+[authentication specification](https://github.com/git-lfs/git-lfs/blob/main/docs/api/authentication.md)
+defines optional `expires_in` / `expires_at` expiration hints; there is no hard-coded lifetime in
+this gateway, and client-side expiration hints are not proof of server-enforced expiration.
+Public documentation reviewed for this change did not establish GitHub guarantees for
+download-only scope, repository scope, or a fixed maximum token lifetime. Validate GitHub's
+actual restrictions and expiration in a controlled deployment before relying on strict read-only
+access; observed behavior is not a lasting provider guarantee. If those guarantees cannot be
+established, use a downstream identity with independently enforced read-only access or a separate policy-enforcing LFS proxy
+instead of relying solely on this authentication passthrough.
+
+#### Deployment verification
+
+- Ensure the repository is allowed and `git lfs pull` downloads a missing LFS object.
+- Confirm `git-lfs-authenticate ... upload` and authentication for denied repositories fail.
+- Confirm normal `git fetch` still works and `git push` remains denied.
+- Check that gateway audit logs contain decisions, not response headers or object contents.
+- Verify credential scope and expiration using controlled repositories; do not publish credentials.
+- If transport diagnosis is needed, run `GIT_TRACE=1 git lfs pull` locally and inspect the SSH
+  command. Treat traces as sensitive and redact credentials before sharing.
+
+The reported deployment log showed the exact request
+`git-lfs-authenticate oclea/rvp-cooper-sdk.git download`. A local Git LFS 3.8.0 trace also
+confirmed the pure SSH probe followed by authentication fallback; live GitHub token restrictions
+and end-to-end downloads were not verified in the sandbox.
+
 ## Logging
 
 The gateway logs timestamped decisions to stderr/journald via the forced command:
@@ -286,6 +360,9 @@ The tests cover:
 - rejection of push/arbitrary commands/extra arguments
 - `GIT_PROTOCOL` preservation for protocol v2
 - explicit `run_as_user` HOME selection for downstream SSH
+- LFS download authentication, rejection of upload/unsafe requests, and repository policy
+- unchanged authentication JSON on stdout, stderr-only diagnostics, and downstream exit status
+- installer public-key permissions, preserved keys/policy, and forced-command shell configuration
 
 ## Manual security verification
 
@@ -312,6 +389,29 @@ resolve to the same repository rule target; traversal and extra-argument variant
 
 ## Troubleshooting
 
+- If authentication fails after reinstalling, check that `git` can read
+  `/etc/agent-git-gateway/authorized_keys` and that it still contains the offered public key.
+  Reinstalling this version repairs the directory and file permissions; it cannot restore keys
+  deleted by an uninstall.
+- If Git fails with `bad line length character: This` after authentication succeeds, check
+  `getent passwd git`: `/usr/sbin/nologin` emits text instead of executing the forced command.
+  Reinstall this version, or repair an existing dedicated gateway installation with:
+
+  ```bash
+  sudo usermod --shell /bin/sh git
+  sudo chown root:root /etc/agent-git-gateway /etc/agent-git-gateway/authorized_keys
+  sudo chmod 0755 /etc/agent-git-gateway
+  sudo chmod 0644 /etc/agent-git-gateway/authorized_keys
+  ```
+
+  Keep the dedicated daemon's `ForceCommand` and forwarding restrictions in place, and ensure
+  other SSH daemons do not allow unrestricted access to `git`. Retry `git pull`; these shell
+  and permission repairs alone do not require a daemon restart.
+- If LFS fails with "command must contain exactly an operation and a repository", update the
+  installed gateway implementation to this LFS-aware version. The old parser accepts only
+  two-argument `git-upload-pack` requests.
+- If LFS authentication succeeds but downloads fail, check HTTPS connectivity and the downstream
+  identity's LFS permissions. A denied `git-lfs-transfer` probe alone is expected with fallback.
 - If fetches fail with protocol v2 clients, verify `GIT_PROTOCOL` is present in the gateway
   environment and that the downstream command includes `SendEnv=GIT_PROTOCOL`.
 - If the gateway loops back into itself, verify the downstream host alias is
@@ -365,4 +465,5 @@ an administrator to review or remove explicitly.
 - `agent-user` cannot become root.
 - The firewall rule is actually loaded.
 - The downstream SSH alias remains separate from the `agent-user`'s rewritten `github.com`.
-- This gateway does not add GitHub API or HTTPS credentials; those remain separate by design.
+- This gateway does not add general GitHub API or HTTPS Git credentials. LFS download
+  authentication does return provider-controlled HTTPS credentials, with the limitations above.
